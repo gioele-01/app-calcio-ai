@@ -1,9 +1,3 @@
-import streamlit as st  # type: ignore[import-not-found]
-import requests
-import numpy as np  # type: ignore[import-not-found]
-from math import exp, factorial
-from datetime import datetime
-from google import genai
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
@@ -21,7 +15,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Avanzato: Dixon-Coles, Home/Away Weighting, Decay Model & Gemini Context AI")
+st.caption("Algoritmo Calibrato: Dixon-Coles, Dynamic Goal Markets & Gemini Context AI")
 
 # ---------------------------------------------------------
 # RECUPERO AUTOMATICO CHIAVI API DAI SECRETS (O INPUT MANUALE)
@@ -42,23 +36,25 @@ with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not b
     else:
         gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
     
+    # Mappatura Codici con Medie Gol Fatti/Subiti Specifiche del Campionato
     code_map = {
-        "🇮🇹 Serie A": "SA",
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": "PL",
-        "🇪🇸 La Liga": "PD",
-        "🇩🇪 Bundesliga": "BL1",
-        "🇫🇷 Ligue 1": "FL1",
-        "🇳🇱 Eredivisie": "DED",
-        "🇵🇹 Primeira Liga": "PPL",
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": "ELC",
-        "🇪🇺 Champions League": "CL"
+        "🇮🇹 Serie A": {"code": "SA", "home_avg": 1.42, "away_avg": 1.12},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"code": "PL", "home_avg": 1.55, "away_avg": 1.25},
+        "🇪🇸 La Liga": {"code": "PD", "home_avg": 1.38, "away_avg": 1.08},
+        "🇩🇪 Bundesliga": {"code": "BL1", "home_avg": 1.65, "away_avg": 1.35},
+        "🇫🇷 Ligue 1": {"code": "FL1", "home_avg": 1.40, "away_avg": 1.10},
+        "🇳🇱 Eredivisie": {"code": "DED", "home_avg": 1.68, "away_avg": 1.32},
+        "🇵🇹 Primeira Liga": {"code": "PPL", "home_avg": 1.45, "away_avg": 1.18},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": {"code": "ELC", "home_avg": 1.35, "away_avg": 1.10},
+        "🇪🇺 Champions League": {"code": "CL", "home_avg": 1.60, "away_avg": 1.30}
     }
     
     campionato_scelto = st.selectbox("Campionato / Coppa", list(code_map.keys()))
-    comp_code = code_map[campionato_scelto]
+    comp_info = code_map[campionato_scelto]
+    comp_code = comp_info["code"]
 
 # ---------------------------------------------------------
-# FILTRI DI RICERCA OTTIMIZZATI PER MOBILE
+# FILTRI DI RICERCA
 # ---------------------------------------------------------
 with st.expander("🔍 **Filtri di Ricerca & Mercati**", expanded=True):
     col_f1, col_f2 = st.columns(2)
@@ -88,13 +84,6 @@ with st.expander("🔍 **Filtri di Ricerca & Mercati**", expanded=True):
         value=60, 
         step=5
     )
-    
-    if min_confidence >= 75:
-        st.caption("🛡️ **Profilo Prudente:** Verranno mostrati solo i pronostici ad altissima confidenza.")
-    elif min_confidence >= 60:
-        st.caption("⚖️ **Profilo Bilanciato:** Ottimo equilibrio tra frequenza di match e stabilità.")
-    else:
-        st.caption("🔥 **Profilo Aggressivo / Azzardo:** Include partite con esiti più aperti e quote potenzialmente più alte.")
 
 # ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI
@@ -120,9 +109,9 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
         return f"⚠️ Impossibile recuperare l'analisi Gemini: {str(e)}"
 
 # ---------------------------------------------------------
-# LOGICA DATA SCIENCE: DIXON-COLES & EXPONENTIAL DECAY
+# LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
-def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
+def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.11):
     if x == 0 and y == 0:
         return 1 - (lambda_casa * lambda_trasferta * rho)
     elif x == 0 and y == 1:
@@ -158,7 +147,7 @@ def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=Tru
     dataset_finale = partite_filtrate if len(partite_filtrate) >= 2 else partite_generali
 
     if not dataset_finale:
-        return 1.45, 1.15, 0.5
+        return 1.30, 1.10, 0.5
 
     pesi = [np.exp(-i / half_life) for i in range(len(dataset_finale))]
     somma_pesi = sum(pesi)
@@ -177,26 +166,24 @@ def analizza_partita_precisione_pro(
     gf_trasferta, gs_trasferta, var_trasferta,
     media_camp_casa=1.45, media_camp_trasferta=1.15
 ):
-    gf_casa, gs_casa = max(gf_casa, 0.5), max(gs_casa, 0.5)
-    gf_trasferta, gs_trasferta = max(gf_trasferta, 0.5), max(gs_trasferta, 0.5)
+    # Smoothing per evitare crolli drastici su gol attesi bassi
+    gf_casa, gs_casa = max(gf_casa, 0.8), max(gs_casa, 0.8)
+    gf_trasferta, gs_trasferta = max(gf_trasferta, 0.8), max(gs_trasferta, 0.8)
 
     attacco_casa = gf_casa / media_camp_casa
     difesa_casa = gs_casa / media_camp_trasferta
     attacco_trasferta = gf_trasferta / media_camp_trasferta
     difesa_trasferta = gs_trasferta / media_camp_casa
 
-    lambda_casa = attacco_casa * difesa_trasferta * media_camp_casa
-    lambda_trasferta = attacco_trasferta * difesa_casa * media_camp_trasferta
+    # Calcolo Gol Attesi (Lambda) con Floor di sicurezza
+    lambda_casa = max(0.85, attacco_casa * difesa_trasferta * media_camp_casa)
+    lambda_trasferta = max(0.85, attacco_trasferta * difesa_casa * media_camp_trasferta)
 
     max_gol = 6
     matrice = np.zeros((max_gol, max_gol))
     for i in range(max_gol):
         for j in range(max_gol):
-            # PMF di Poisson calcolata senza dipendere da scipy.
-            p_base = (
-                exp(-lambda_casa) * lambda_casa ** i / factorial(i)
-                * exp(-lambda_trasferta) * lambda_trasferta ** j / factorial(j)
-            )
+            p_base = poisson.pmf(i, lambda_casa) * poisson.pmf(j, lambda_trasferta)
             correzione = tau_dixon_coles(i, j, lambda_casa, lambda_trasferta)
             matrice[i, j] = p_base * correzione
 
@@ -208,8 +195,12 @@ def analizza_partita_precisione_pro(
 
     prob_under_25 = sum(matrice[i, j] for i in range(max_gol) for j in range(max_gol) if i + j <= 2) * 100
     prob_over_25 = 100 - prob_under_25
-    prob_no_goal = (np.sum(matrice[0, :]) + np.sum(matrice[:, 0]) - matrice[0, 0]) * 100
-    prob_goal = 100 - prob_no_goal
+    
+    # Calcolo bilanciato del mercato Goal (almeno 1 gol per parte)
+    p_casa_segna = 1 - poisson.pmf(0, lambda_casa)
+    p_trasferta_segna = 1 - poisson.pmf(0, lambda_trasferta)
+    prob_goal = (p_casa_segna * p_trasferta_segna) * 100
+    prob_no_goal = 100 - prob_goal
 
     tutti_gli_esiti = {
         "1": prob_1, "X": prob_X, "2": prob_2,
@@ -217,7 +208,6 @@ def analizza_partita_precisione_pro(
         "Goal": prob_goal, "No Goal": prob_no_goal
     }
 
-    # Filtro opzionale per tipologia di mercato
     if mercato_preferito == "Solo 1X2":
         esiti_filtrati = {"1": prob_1, "X": prob_X, "2": prob_2}
     elif mercato_preferito == "Solo Over / Under":
@@ -230,7 +220,7 @@ def analizza_partita_precisione_pro(
     esito_top = max(esiti_filtrati, key=esiti_filtrati.get)
 
     varianza_media = (var_casa + var_trasferta) / 2
-    fattore_stabilita = max(0.85, 1.0 - (varianza_media * 0.03))
+    fattore_stabilita = max(0.88, 1.0 - (varianza_media * 0.02))
     affidabilita_corretta = esiti_filtrati[esito_top] * fattore_stabilita
 
     return (
@@ -274,14 +264,22 @@ if st.button("🚀 AVVIA ANALISI AI"):
                     trasf_id = match['awayTeam']['id']
                     nome_match = f"{casa} vs {trasferta}"
 
-                    gf_c, gs_c, var_c = ottieni_stats_casa_trasferta_pesate(all_matches, casa_id, is_home=True, n_partite=6)
-                    gf_t, gs_t, var_t = ottieni_stats_casa_trasferta_pesate(all_matches, trasf_id, is_home=False, n_partite=6)
+                    gf_c, gs_c, var_c = ottieni_stats_casa_trasferta_pesate(
+                        all_matches, casa_id, is_home=True, n_partite=6
+                    )
+                    gf_t, gs_t, var_t = ottieni_stats_casa_trasferta_pesate(
+                        all_matches, trasf_id, is_home=False, n_partite=6
+                    )
 
                     (
                         top_pick, perc_top, p1, px, p2,
                         p_over, p_under, p_goal, p_ng,
                         matrice
-                    ) = analizza_partita_precisione_pro(gf_c, gs_c, var_c, gf_t, gs_t, var_t)
+                    ) = analizza_partita_precisione_pro(
+                        gf_c, gs_c, var_c, gf_t, gs_t, var_t,
+                        media_camp_casa=comp_info["home_avg"],
+                        media_camp_trasferta=comp_info["away_avg"]
+                    )
 
                     if perc_top >= min_confidence:
                         partite_analizzate.append({
