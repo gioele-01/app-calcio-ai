@@ -1,8 +1,9 @@
-import streamlit as st  # type: ignore
-import requests  # type: ignore[import-not-found]
-import numpy as np  # type: ignore[import-not-found]
-import pandas as pd  # type: ignore[import-not-found]
-from scipy.stats import poisson  # type: ignore[import-not-found]
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
+import streamlit as st
+import requests
+import numpy as np
+import pandas as pd
+from scipy.stats import poisson
 from datetime import datetime
 
 # ---------------------------------------------------------
@@ -25,7 +26,7 @@ st.title("⚽ Football AI Match Analyzer Pro")
 st.caption("Algoritmo Calibrato: API-Football, Dixon-Coles & Gemini Context AI")
 
 # ---------------------------------------------------------
-# RECUPERO CHIAVI API DAI SECRETS O INPUT
+# RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
 # ---------------------------------------------------------
 rapid_key_secret = st.secrets.get("RAPIDAPI_KEY", "")
 gemini_key_secret = st.secrets.get("GEMINI_API_KEY", "")
@@ -44,64 +45,58 @@ with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(rapid_k
         gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
 
 # ---------------------------------------------------------
-# FETCH DINAMICO DI TUTTI I CAMPIONATI DISPONIBILI (CACHE 24H)
-# ---------------------------------------------------------
-@st.cache_data(ttl=86400)
-def scarica_tutti_i_campionati_disponibili(key):
-    if not key:
-        return {}
-    url = "https://api-football-v1.p.rapidapi.com/v3/leagues"
-    headers = {
-        "X-RapidAPI-Key": key,
-        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
-    }
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            leagues_data = res.json().get("response", [])
-            dict_campionati = {}
-            for item in leagues_data:
-                league_info = item['league']
-                country_info = item['country']
-                nome_completo = f"{country_info['name']} - {league_info['name']}"
-                
-                dict_campionati[nome_completo] = {
-                    "id": league_info['id'],
-                    "type": league_info['type'],
-                    "home_avg": 1.45,
-                    "away_avg": 1.15,
-                    "btts_base": 0.52
-                }
-            # Ordina i campionati alfabeticamente per nazione
-            return dict(sorted(dict_campionati.items()))
-    except Exception:
-        pass
-    return {}
-
-# ---------------------------------------------------------
-# FILTRI DI RICERCA & CAMPIONATI
+# FILTRI DI RICERCA & MAPPATURA CAMPIONATI
 # ---------------------------------------------------------
 with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
-    # Fallback manuale dei campionati principali nel caso l'API sia senza chiave
-    code_map_default = {
-        "Italy - Serie A": {"id": 135, "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
-        "Italy - Serie B": {"id": 136, "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
-        "England - Premier League": {"id": 39, "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
-        "Spain - La Liga": {"id": 140, "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
-        "Germany - Bundesliga": {"id": 78, "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
-        "France - Ligue 1": {"id": 61, "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
-        "World - UEFA Champions League": {"id": 2, "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57}
+    code_map = {
+        "🇮🇹 Italia - Serie A": {"id": 135, "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
+        "🇮🇹 Italia - Serie B": {"id": 136, "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Premier League": {"id": 39, "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Championship": {"id": 40, "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {"id": 41, "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.51},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {"id": 42, "home_avg": 1.40, "away_avg": 1.15, "btts_base": 0.52},
+        "🇪🇸 Spagna - La Liga": {"id": 140, "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
+        "🇪🇸 Spagna - Segunda Division": {"id": 141, "home_avg": 1.25, "away_avg": 0.95, "btts_base": 0.45},
+        "🇩🇪 Germania - Bundesliga": {"id": 78, "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
+        "🇩🇪 Germania - 2. Bundesliga": {"id": 79, "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.57},
+        "🇩🇪 Germania - 3. Liga": {"id": 80, "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.54},
+        "🇫🇷 Francia - Ligue 1": {"id": 61, "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
+        "🇫🇷 Francia - Ligue 2": {"id": 62, "home_avg": 1.28, "away_avg": 0.98, "btts_base": 0.46},
+        "🇳🇱 Olanda - Eredivisie": {"id": 88, "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
+        "🇵🇹 Portogallo - Primeira Liga": {"id": 94, "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+        "🇧🇪 Belgio - First Division A": {"id": 144, "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+        "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"id": 179, "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
+        "🇦🇹 Austria - Bundesliga": {"id": 218, "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+        "🇨🇭 Svizzera - Super League": {"id": 207, "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
+        "🇩🇰 Danimarca - Superliga": {"id": 119, "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
+        "🇸🇪 Svezia - Allsvenskan": {"id": 113, "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
+        "🇸🇪 Svezia - Superettan": {"id": 114, "home_avg": 1.42, "away_avg": 1.15, "btts_base": 0.52},
+        "🇳🇴 Norvegia - Eliteserien": {"id": 103, "home_avg": 1.60, "away_avg": 1.28, "btts_base": 0.58},
+        "🇫🇮 Finlandia - Veikkausliiga": {"id": 244, "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.50},
+        "🇵🇱 Polonia - Ekstraklasa": {"id": 106, "home_avg": 1.40, "away_avg": 1.12, "btts_base": 0.51},
+        "🇹🇷 Turchia - Super League": {"id": 203, "home_avg": 1.52, "away_avg": 1.20, "btts_base": 0.55},
+        "🇬🇷 Grecia - Super League": {"id": 197, "home_avg": 1.38, "away_avg": 1.02, "btts_base": 0.47},
+        "🇷🇺 Russia - Premier League": {"id": 235, "home_avg": 1.40, "away_avg": 1.08, "btts_base": 0.49},
+        "🇧🇷 Brasile - Serie A": {"id": 71, "home_avg": 1.48, "away_avg": 1.05, "btts_base": 0.48},
+        "🇧🇷 Brasile - Serie B": {"id": 72, "home_avg": 1.32, "away_avg": 0.88, "btts_base": 0.42},
+        "🇦🇷 Argentina - Primera Division": {"id": 128, "home_avg": 1.25, "away_avg": 0.92, "btts_base": 0.43},
+        "🇨🇱 Cile - Primera Division": {"id": 265, "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.50},
+        "🇲🇽 Messico - Liga MX": {"id": 262, "home_avg": 1.48, "away_avg": 1.15, "btts_base": 0.52},
+        "🇺🇸 USA - MLS": {"id": 253, "home_avg": 1.62, "away_avg": 1.22, "btts_base": 0.57},
+        "🇯🇵 Giappone - J1 League": {"id": 98, "home_avg": 1.38, "away_avg": 1.15, "btts_base": 0.50},
+        "🇰🇷 Corea del Sud - K League 1": {"id": 292, "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.49},
+        "🇨🇳 Cina - Super League": {"id": 169, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
+        "🇦🇺 Australia - A-League": {"id": 188, "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.58},
+        "🇪🇺 UEFA Champions League": {"id": 2, "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
+        "🇪🇺 UEFA Champions League Qual.": {"id": 2, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
+        "🇪🇺 UEFA Europa League": {"id": 3, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
+        "🇪🇺 UEFA Conference League": {"id": 848, "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+        "🌎 Copa Libertadores": {"id": 13, "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
+        "🌎 Copa Sudamericana": {"id": 11, "home_avg": 1.42, "away_avg": 0.95, "btts_base": 0.45}
     }
-
-    if api_key:
-        campionati_disponibili = scarica_tutti_i_campionati_disponibili(api_key)
-        if not campionati_disponibili:
-            campionati_disponibili = code_map_default
-    else:
-        campionati_disponibili = code_map_default
-
-    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Coppa", list(campionati_disponibili.keys()))
-    comp_info = campionati_disponibili[campionato_scelto]
+    
+    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Coppa", list(code_map.keys()))
+    comp_info = code_map[campionato_scelto]
     league_id = comp_info["id"]
 
     col_f1, col_f2 = st.columns(2)
@@ -156,7 +151,7 @@ def scarica_partite_api_football(league_id, key):
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     if not key:
-        return "⚠️ Inserisci la chiave API di Google Gemini nella sezione Configurazione per abilitare l'analisi."
+        return "⚠️ Inserisci la chiave API di Google Gemini nella sezione Configurazione in alto."
 
     prompt = f"""
     Sei un analista tattico di calcio esperto. 
@@ -185,7 +180,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave sia attiva su Google AI Studio."
 
 # ---------------------------------------------------------
-# LOGICA DATA SCIENCE CALIBRATA
+# LOGICA DATA SCIENCE CALIBRATA (DIXON-COLES & POISSON)
 # ---------------------------------------------------------
 def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.05):
     if x == 0 and y == 0:
