@@ -96,6 +96,7 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
 # ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
+from google.genai import types
 
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
@@ -347,7 +348,9 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite con modello di precisione")
 
-    for p in partite:
+    for idx, p in enumerate(partite):
+        match_key = f"gemini_report_{p['match']}"
+        
         with st.expander(f"⚽ **{p['match']}**\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
             st.write("**Esito Finale (1X2)**")
             c1, c2, c3 = st.columns(3)
@@ -364,12 +367,22 @@ if 'partite' in st.session_state and st.session_state['partite']:
             m3.metric("Goal", f"{p['goal']:.1f}%")
             m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
+            # GESTIONE SICURA GEMINI CON SESSION STATE (EVITA CARICAMENTO INFINITO)
             if gemini_api_key:
                 st.markdown("---")
-                if st.button(f"🧠 Analizza Contesto Notizie per {p['match']}", key=f"btn_{p['match']}"):
-                    with st.spinner("Gemini sta elaborando notizie e formazioni..."):
-                        report = analizza_contesto_con_gemini(p['match'], p['top_pick'], p['top_perc'], gemini_api_key)
-                        st.info(report)
+                
+                # Se il report per questa partita è già stato generato, mostralo direttamente
+                if match_key in st.session_state:
+                    st.info(st.session_state[match_key])
+                else:
+                    if st.button(f"🧠 Analizza Contesto Notizie", key=f"btn_{idx}_{p['match']}"):
+                        with st.spinner("Gemini sta elaborando le notizie recenti..."):
+                            report = analizza_contesto_con_gemini(
+                                p['match'], p['top_pick'], p['top_perc'], gemini_api_key
+                            )
+                            # Salva il risultato nello stato per evitare il loop di caricamento
+                            st.session_state[match_key] = report
+                            st.rerun()
 
     st.markdown("---")
 
