@@ -128,22 +128,29 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# FETCHING PARTITE CON CACHE DI 1 ORA
+# FETCHING PARTITE CON FALLBACK STAGIONE E CACHE
 # ---------------------------------------------------------
 @st.cache_data(ttl=3600)
 def scarica_partite_api_football(league_id, key):
     anno_corrente = datetime.now().year
-    url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={anno_corrente}"
+    stagioni_da_provare = [anno_corrente, anno_corrente - 1]
+    
     headers = {
-        "X-RapidAPI-Key": key,
+        "X-RapidAPI-Key": key.strip(),
         "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
     }
-    try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json().get("response", [])
-    except Exception:
-        pass
+    
+    for season in stagioni_da_provare:
+        url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}"
+        try:
+            res = requests.get(url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                data = res.json().get("response", [])
+                if data:  # Se ha trovato partite per questa stagione, le restituisce subito
+                    return data
+        except Exception:
+            continue
+            
     return []
 
 # ---------------------------------------------------------
