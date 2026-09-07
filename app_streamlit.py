@@ -1,10 +1,20 @@
-# pyright: reportMissingImports=false, reportMissingModuleSource=false
-import streamlit as st
+import streamlit as st  # type: ignore[reportMissingImports]
 import requests
-import numpy as np
-import pandas as pd
-from scipy.stats import poisson
+import numpy as np  # type: ignore[reportMissingImports]
+import pandas as pd  # type: ignore[reportMissingImports]
+from math import exp, factorial
 from datetime import datetime
+
+
+class _Poisson:
+    """Minimal Poisson distribution implementation used by the model."""
+
+    @staticmethod
+    def pmf(k, mu):
+        return exp(-mu) * (mu ** k) / factorial(k)
+
+
+poisson = _Poisson()
 
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
@@ -23,7 +33,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Calibrato: API-Football, Dixon-Coles & Gemini Context AI")
+st.caption("Algoritmo Calibrato: Football API, Dixon-Coles & Gemini Context AI")
 
 # ---------------------------------------------------------
 # RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
@@ -33,7 +43,7 @@ gemini_key_secret = st.secrets.get("GEMINI_API_KEY", "")
 
 with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(rapid_key_secret)):
     if rapid_key_secret:
-        st.success("✅ Chiave RapidAPI-Football caricata dai Secrets!")
+        st.success("✅ Chiave RapidAPI caricata dai Secrets!")
         api_key = rapid_key_secret
     else:
         api_key = st.text_input("Chiave API (X-RapidAPI-Key)", type="password")
@@ -66,7 +76,7 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
         "🇵🇹 Portogallo - Primeira Liga": {"id": 94, "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
         "🇧🇪 Belgio - First Division A": {"id": 144, "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
         "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"id": 179, "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
-        "🇦🇹 Austria - Bundesliga": {"id": 218, "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+        "🇦特 Austria - Bundesliga": {"id": 218, "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
         "🇨🇭 Svizzera - Super League": {"id": 207, "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
         "🇩🇰 Danimarca - Superliga": {"id": 119, "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
         "🇸🇪 Svezia - Allsvenskan": {"id": 113, "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
@@ -88,7 +98,6 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
         "🇨🇳 Cina - Super League": {"id": 169, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
         "🇦🇺 Australia - A-League": {"id": 188, "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.58},
         "🇪🇺 UEFA Champions League": {"id": 2, "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
-        "🇪🇺 UEFA Champions League Qual.": {"id": 2, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
         "🇪🇺 UEFA Europa League": {"id": 3, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
         "🇪🇺 UEFA Conference League": {"id": 848, "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
         "🌎 Copa Libertadores": {"id": 13, "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
@@ -128,50 +137,55 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# FETCHING PARTITE CON DIAGNOSTICA ERRORI INTELLIGENTE
+# FETCHING PARTITE ADATTATO A FOOTBALL API
 # ---------------------------------------------------------
 def scarica_partite_api_football(league_id, key, filtro_data_tipo, data_specif):
     if not key:
-        return None, "⚠️ Nessuna chiave API fornita. Inserisci la X-RapidAPI-Key."
+        return None, "⚠️ Nessuna chiave API fornita."
 
     key_pulita = key.strip().replace('"', '').replace("'", "")
     
-    headers = {
-        "X-RapidAPI-Key": key_pulita,
-        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
-    }
+    # Prova gli host principali utilizzati dai vari provider di Football API su RapidAPI
+    hosts_da_provare = [
+        "api-football-v1.p.rapidapi.com",
+        "football-api2.p.rapidapi.com",
+        "sports-football-info.p.rapidapi.com"
+    ]
     
-    anno_curr = datetime.now().year # 2026
+    anno_curr = datetime.now().year
     oggi_str = datetime.today().strftime('%Y-%m-%d')
-    
-    # Tentativo sulle stagioni 2026 e 2025
     ultimi_errori = []
-    for season in [anno_curr, anno_curr - 1]:
-        if filtro_data_tipo == "Solo Oggi":
-            url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&date={oggi_str}"
-        elif filtro_data_tipo == "Seleziona Data Specifica" and data_specif:
-            dt_str = data_specif.strftime('%Y-%m-%d')
-            url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&date={dt_str}"
-        else:
-            url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&next=15"
 
-        try:
-            res = requests.get(url, headers=headers, timeout=10)
-            if res.status_code == 200:
-                data = res.json().get("response", [])
-                if data:
-                    return data, None
-                else:
-                    ultimi_errori.append(f"Stagione {season}: risposta vuota dall'API (nessun evento in programma).")
+    for host in hosts_da_provare:
+        headers = {
+            "X-RapidAPI-Key": key_pulita,
+            "X-RapidAPI-Host": host
+        }
+        
+        for season in [anno_curr, anno_curr - 1]:
+            if filtro_data_tipo == "Solo Oggi":
+                url = f"https://{host}/v3/fixtures?league={league_id}&season={season}&date={oggi_str}"
+            elif filtro_data_tipo == "Seleziona Data Specifica" and data_specif:
+                dt_str = data_specif.strftime('%Y-%m-%d')
+                url = f"https://{host}/v3/fixtures?league={league_id}&season={season}&date={dt_str}"
             else:
-                return None, f"Errore API (Codice {res.status_code}): {res.text}"
-        except Exception as e:
-            ultimi_errori.append(f"Errore di connessione: {str(e)}")
+                url = f"https://{host}/v3/fixtures?league={league_id}&season={season}&next=15"
 
-    return None, " | ".join(ultimi_errori)
+            try:
+                res = requests.get(url, headers=headers, timeout=8)
+                if res.status_code == 200:
+                    data = res.json().get("response", [])
+                    if data:
+                        return data, None
+                elif res.status_code in [401, 403]:
+                    ultimi_errori.append(f"Host {host}: Accesso rifiutato ({res.status_code}). Verifica iscrizione.")
+            except Exception as e:
+                ultimi_errori.append(f"Host {host}: Errore di connessione.")
+
+    return None, " | ".join(ultimi_errori) if ultimi_errori else "Nessun evento trovato per questa selezione."
 
 # ---------------------------------------------------------
-# INTEGRATORE GEMINI CONTEXT AI (REST FAST CALL)
+# INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     if not key:
@@ -204,7 +218,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave sia attiva su Google AI Studio."
 
 # ---------------------------------------------------------
-# LOGICA DATA SCIENCE CALIBRATA (DIXON-COLES & POISSON)
+# LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
 def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.05):
     if x == 0 and y == 0:
@@ -333,7 +347,7 @@ def analizza_partita_precisione_pro(
 # ---------------------------------------------------------
 if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
-        st.error("Inserisci la chiave RapidAPI-Football per continuare.")
+        st.error("Inserisci la chiave RapidAPI per continuare.")
     else:
         with st.spinner("Scaricamento dati e calcolo matrici probabilità..."):
             all_matches, error_msg = scarica_partite_api_football(
@@ -387,7 +401,8 @@ if st.button("🚀 AVVIA ANALISI AI"):
             st.session_state['campionato_corrente'] = campionato_scelto
             st.rerun()
         else:
-            st.error(f"❌ Dettaglio Errore API: {error_msg}")
+            st.error(f"❌ Dettaglio Risposta API: {error_msg}")
+
 # ---------------------------------------------------------
 # INTERFACCIA UTENTE
 # ---------------------------------------------------------
