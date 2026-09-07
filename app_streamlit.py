@@ -96,61 +96,48 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
 # ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
-from google.genai import types
+import requests
 
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
-    Funzione Gemini con modelli aggiornati, search grounding e gestione degli errori 404.
+    Chiamata diretta REST all'API di Gemini: ultra-veloce, zero blocchi e zero caricamenti infiniti.
     """
     if not key:
-        return "⚠️ Inserisci la chiave API di Google Gemini nelle impostazioni per abilitare l'analisi."
-        
-    prompt = f"""
-    Cerca rapidamente sul web le ultime notizie di oggi per la partita: '{match_name}'.
-    Il nostro modello matematico prevede '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
+        return "⚠️ Inserisci la chiave API di Google Gemini per abilitare l'analisi in tempo reale."
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
     
-    Rispondi in modo sintetico (massimo 3 frasi):
-    1. Infortuni, squalifiche o formazioni dell'ultimo minuto.
-    2. Motivazioni di classifica o stanchezza da coppe.
-    3. Verdetto: il contesto conferma o sconsiglia questo pronostico?
+    prompt = f"""
+    Sei un analista tattico di calcio. 
+    Il nostro modello matematico-statistico prevede per la partita '{match_name}' l'esito '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
+    
+    Analizza brevemente (massimo 3 frasi sintetiche) il contesto di questa partita:
+    1. Eventuali assenze o infortuni rilevanti per questo match.
+    2. Motivazioni di classifica o turnover.
+    3. Concludi indicando se il contesto conferma o sconsiglia il pronostico.
     """
     
-    # Lista dei modelli ufficiali in ordine di preferenza
-    modelli_da_provare = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}]
+    }
     
-    for modello in modelli_da_provare:
-        try:
-            client = genai.Client(api_key=key)
+    try:
+        # Timeout rigido di 6 secondi per evitare il caricamento all'infinito
+        response = requests.post(url, json=payload, timeout=6)
+        
+        if response.status_code == 200:
+            data = response.json()
+            text = data['candidates'][0]['content']['parts'][0]['text']
+            return text
+        elif response.status_code == 400 or response.status_code == 403:
+            return "⚠️ Chiave API Gemini non valida. Controlla la chiave inserita in Google AI Studio."
+        else:
+            return f"⚠️ Errore API Gemini (Codice {response.status_code}). Riprova tra qualche secondo."
             
-            # Configurazione ricerca web e disabilitazione thinking lento
-            config = types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())],
-                thinking_config=types.ThinkingConfig(thinking_budget=0)
-            )
-            
-            response = client.models.generate_content(
-                model=modello,
-                contents=prompt,
-                config=config
-            )
-            
-            if response and response.text:
-                return response.text
-                
-        except Exception:
-            # Se la ricerca con quel modello fallisce, prova senza tools di ricerca prima di passare al modello successivo
-            try:
-                client = genai.Client(api_key=key)
-                response = client.models.generate_content(
-                    model=modello,
-                    contents=prompt
-                )
-                if response and response.text:
-                    return response.text
-            except Exception:
-                continue
-
-    return "⚠️ Impossibile contattare i modelli Gemini. Verifica che la tua API Key sia attiva su Google AI Studio."
+    except requests.exceptions.Timeout:
+        return "⏱️ Tempo di attesa scaduto: il server Gemini ha impiegato troppo tempo a rispondere. Riprova."
+    except Exception as e:
+        return f"⚠️ Impossibile recuperare l'analisi: {str(e)}"
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
@@ -372,21 +359,24 @@ if 'partite' in st.session_state and st.session_state['partite']:
             m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
             # GESTIONE SICURA GEMINI CON SESSION STATE (EVITA CARICAMENTO INFINITO)
-            if gemini_api_key:
-                st.markdown("---")
-                
-                # Se il report per questa partita è già stato generato, mostralo direttamente
-                if match_key in st.session_state:
-                    st.info(st.session_state[match_key])
-                else:
-                    if st.button(f"🧠 Analizza Contesto Notizie", key=f"btn_{idx}_{p['match']}"):
-                        with st.spinner("Gemini sta elaborando le notizie recenti..."):
-                            report = analizza_contesto_con_gemini(
-                                p['match'], p['top_pick'], p['top_perc'], gemini_api_key
-                            )
-                            # Salva il risultato nello stato per evitare il loop di caricamento
-                            st.session_state[match_key] = report
-                            st.rerun()
+if gemini_api_key:
+    st.markdown("---")
+    match_key = f"gemini_report_{p['match']}"
+    
+    # Se il report esiste già in memoria, mostralo e aggiungi pulsante di aggiornamento
+    if match_key in st.session_state:
+        st.info(st.session_state[match_key])
+        if st.button(f"🔄 Aggiorna Analisi", key=f"reload_{idx}_{p['match']}"):
+            del st.session_state[match_key]
+            st.rerun()
+    else:
+        if st.button(f"🧠 Analizza Contesto Notizie", key=f"btn_{idx}_{p['match']}"):
+            with st.spinner("Gemini sta analizzando la partita..."):
+                report = analizza_contesto_con_gemini(
+                    p['match'], p['top_pick'], p['top_perc'], gemini_api_key
+                )
+                st.session_state[match_key] = report
+                st.rerun()
 
     st.markdown("---")
 
