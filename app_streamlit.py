@@ -128,29 +128,41 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# FETCHING PARTITE CON FALLBACK STAGIONE E CACHE
+# FETCHING PARTITE OTTIMIZZATO (LIGHTWEIGHT & FAST)
 # ---------------------------------------------------------
-@st.cache_data(ttl=3600)
-def scarica_partite_api_football(league_id, key):
-    anno_corrente = datetime.now().year
-    stagioni_da_provare = [anno_corrente, anno_corrente - 1]
-    
+@st.cache_data(ttl=1800)
+def scarica_partite_api_football(league_id, key, filtro_data_tipo, data_specif):
+    """
+    Recupera le partite filtrando per data/prossimi eventi per evitare timeout e payload pesanti.
+    """
     headers = {
         "X-RapidAPI-Key": key.strip(),
         "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
     }
     
-    for season in stagioni_da_provare:
-        url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}"
+    anno_curr = datetime.now().year # 2026
+    oggi_str = datetime.today().strftime('%Y-%m-%d')
+    
+    # Prova la stagione corrente e quella precedente
+    for season in [anno_curr, anno_curr - 1]:
+        if filtro_data_tipo == "Solo Oggi":
+            url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&date={oggi_str}"
+        elif filtro_data_tipo == "Seleziona Data Specifica" and data_specif:
+            dt_str = data_specif.strftime('%Y-%m-%d')
+            url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&date={dt_str}"
+        else:
+            # Per "Tutte le prossime", recupera i prossimi 15 match in programma
+            url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&next=15"
+
         try:
-            res = requests.get(url, headers=headers, timeout=10)
+            res = requests.get(url, headers=headers, timeout=8)
             if res.status_code == 200:
                 data = res.json().get("response", [])
-                if data:  # Se ha trovato partite per questa stagione, le restituisce subito
+                if data:
                     return data
         except Exception:
             continue
-            
+
     return []
 
 # ---------------------------------------------------------
@@ -319,65 +331,58 @@ if st.button("🚀 AVVIA ANALISI AI"):
         st.error("Inserisci la chiave RapidAPI-Football per continuare.")
     else:
         with st.spinner("Scaricamento dati e calcolo matrici probabilità..."):
-            all_matches = scarica_partite_api_football(league_id, api_key)
+            all_matches = scarica_partite_api_football(
+                league_id, api_key, filtro_data, data_selezionata
+            )
 
         if all_matches:
             partite_analizzate = []
             dettagli_matrici = {}
-            oggi_str = datetime.today().strftime('%Y-%m-%d')
 
             for m in all_matches:
-                status = m['fixture']['status']['short']
-                if status in ['NS', 'TBD']:
-                    data_partita = m['fixture']['date'][:10]
+                casa = m['teams']['home']['name']
+                trasferta = m['teams']['away']['name']
+                casa_id = m['teams']['home']['id']
+                trasf_id = m['teams']['away']['id']
+                data_partita = m['fixture']['date'][:10]
+                nome_match = f"{casa} vs {trasferta}"
 
-                    if filtro_data == "Solo Oggi" and data_partita != oggi_str:
-                        continue
-                    elif filtro_data == "Seleziona Data Specifica" and data_partita != data_selezionata.strftime('%Y-%m-%d'):
-                        continue
+                gf_c, gs_c, var_c = ottieni_stats_casa_trasferta_pesate(
+                    all_matches, casa_id, is_home=True, n_partite=6
+                )
+                gf_t, gs_t, var_t = ottieni_stats_casa_trasferta_pesate(
+                    all_matches, trasf_id, is_home=False, n_partite=6
+                )
 
-                    casa = m['teams']['home']['name']
-                    trasferta = m['teams']['away']['name']
-                    casa_id = m['teams']['home']['id']
-                    trasf_id = m['teams']['away']['id']
-                    nome_match = f"{casa} vs {trasferta}"
+                (
+                    top_pick, perc_top, p1, px, p2,
+                    p_over, p_under, p_goal, p_ng,
+                    matrice
+                ) = analizza_partita_precisione_pro(
+                    gf_c, gs_c, var_c, gf_t, gs_t, var_t,
+                    media_camp_casa=comp_info["home_avg"],
+                    media_camp_trasferta=comp_info["away_avg"],
+                    btts_base=comp_info["btts_base"]
+                )
 
-                    gf_c, gs_c, var_c = ottieni_stats_casa_trasferta_pesate(
-                        all_matches, casa_id, is_home=True, n_partite=6
-                    )
-                    gf_t, gs_t, var_t = ottieni_stats_casa_trasferta_pesate(
-                        all_matches, trasf_id, is_home=False, n_partite=6
-                    )
-
-                    (
-                        top_pick, perc_top, p1, px, p2,
-                        p_over, p_under, p_goal, p_ng,
-                        matrice
-                    ) = analizza_partita_precisione_pro(
-                        gf_c, gs_c, var_c, gf_t, gs_t, var_t,
-                        media_camp_casa=comp_info["home_avg"],
-                        media_camp_trasferta=comp_info["away_avg"],
-                        btts_base=comp_info["btts_base"]
-                    )
-
-                    if perc_top >= min_confidence:
-                        partite_analizzate.append({
-                            "data": data_partita,
-                            "match": nome_match,
-                            "top_pick": top_pick,
-                            "top_perc": perc_top,
-                            "p1": p1, "px": px, "p2": p2,
-                            "over": p_over, "under": p_under,
-                            "goal": p_goal, "no_goal": p_ng
-                        })
-                        dettagli_matrici[nome_match] = (casa, trasferta, matrice)
+                if perc_top >= min_confidence:
+                    partite_analizzate.append({
+                        "data": data_partita,
+                        "match": nome_match,
+                        "top_pick": top_pick,
+                        "top_perc": perc_top,
+                        "p1": p1, "px": px, "p2": p2,
+                        "over": p_over, "under": p_under,
+                        "goal": p_goal, "no_goal": p_ng
+                    })
+                    dettagli_matrici[nome_match] = (casa, trasferta, matrice)
 
             st.session_state['partite'] = partite_analizzate
             st.session_state['dettagli_matrici'] = dettagli_matrici
             st.session_state['campionato_corrente'] = campionato_scelto
+            st.rerun()
         else:
-            st.error("Errore nel recupero dati API-Football. Verifica la chiave o la disponibilità delle partite.")
-
+            st.error("Nessuna partita trovata per questa data o lega. Prova a selezionare 'Tutte le prossime' nel filtro data.")
 # ---------------------------------------------------------
 # INTERFACCIA UTENTE
 # ---------------------------------------------------------
