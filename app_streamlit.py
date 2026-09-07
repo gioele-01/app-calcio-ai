@@ -1,8 +1,16 @@
 import streamlit as st  # type: ignore[import-not-found]
-import requests  # type: ignore[import-not-found, import-untyped]
-import numpy as np  # type: ignore[import-not-found]
-from scipy.stats import poisson  # type: ignore[import-not-found]
+import requests
+import numpy as np
+from math import exp, factorial
 from datetime import datetime
+from google import genai
+
+
+def poisson_pmf(k, rate):
+    """Calculate a Poisson probability mass without the SciPy dependency."""
+    if k < 0 or rate < 0:
+        return 0.0
+    return exp(-rate) * rate ** k / factorial(k)
 
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
@@ -20,13 +28,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Avanzato: Dixon-Coles, Weighted Home/Away & Decay Model")
+st.caption("Algoritmo Avanzato: Dixon-Coles, Home/Away Weighting, Decay Model & Gemini Context AI")
 
 # ---------------------------------------------------------
 # MENU CONFIGURAZIONE IN-PAGE
 # ---------------------------------------------------------
 with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=True):
     api_key = st.text_input("Chiave API (Football-Data.org)", type="password")
+    gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale per Context AI)", type="password")
     
     code_map = {
         "🇮🇹 Serie A": "SA",
@@ -51,7 +60,33 @@ with st.expander("🔍 **Filtri di Ricerca**", expanded=False):
         data_selezionata = st.date_input("Data partita", datetime.today())
 
 # ---------------------------------------------------------
-# LOGICA DATA SCIENCE CORRETTA (CON FALLBACK DI SICUREZZA)
+# INTEGRATORE GEMINI CONTEXT AI
+# ---------------------------------------------------------
+def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
+    """
+    Analizza infortuni, turnover e notizie recenti tramite l'API ufficiale google-genai
+    """
+    try:
+        client = genai.Client(api_key=key)
+        prompt = f"""
+        Sei un analista tattico di calcio. 
+        Il nostro modello matematico-statistico (Dixon-Coles / Poisson) prevede per la partita '{match_name}' l'esito '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
+        
+        Analizza brevemente (massimo 3-4 frasi sintetiche) il contesto reale di questa partita:
+        - Eventuali assenze pesanti, infortuni o squalifiche dell'ultimo minuto.
+        - Motivazioni di classifica o stanchezza da impegni ravvicinati (turnover).
+        - Concludi indicando se il contesto conferma o sconsiglia la giocata matematica.
+        """
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"⚠️ Impossibile recuperare l'analisi Gemini: {str(e)}"
+
+# ---------------------------------------------------------
+# LOGICA DATA SCIENCE: DIXON-COLES & EXPONENTIAL DECAY
 # ---------------------------------------------------------
 def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
     if x == 0 and y == 0:
@@ -67,10 +102,6 @@ def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
 
 
 def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=True, n_partite=6, half_life=3):
-    """
-    Estragga le ultime N partite. Se il campione filtrato per Casa/Trasferta e troppo piccolo,
-    utilizza il campione generale per evitare calcoli errati.
-    """
     partite_filtrate = []
     partite_generali = []
 
@@ -83,19 +114,15 @@ def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=Tru
                 gf = m['score']['fullTime']['home'] if is_home_team else m['score']['fullTime']['away']
                 gs = m['score']['fullTime']['away'] if is_home_team else m['score']['fullTime']['home']
                 
-                # Aggiunge alle generali
                 if len(partite_generali) < n_partite:
                     partite_generali.append({'gf': gf, 'gs': gs})
 
-                # Aggiunge alle specifiche Casa/Trasferta
                 if (is_home and is_home_team) or (not is_home and is_away_team):
                     if len(partite_filtrate) < n_partite:
                         partite_filtrate.append({'gf': gf, 'gs': gs})
 
-    # FALLBACK: Se ci sono meno di 2 partite nello specifico filtro, usa quelle generali
     dataset_finale = partite_filtrate if len(partite_filtrate) >= 2 else partite_generali
 
-    # Se ancora non ci sono partite giocate (inizio stagione), usa le medie standard del campionato
     if not dataset_finale:
         return 1.45, 1.15, 0.5
 
@@ -116,7 +143,6 @@ def analizza_partita_precisione_pro(
     gf_trasferta, gs_trasferta, var_trasferta,
     media_camp_casa=1.45, media_camp_trasferta=1.15
 ):
-    # Protezione con limite minimo ragionevole (0.5 gol invece di 0.1)
     gf_casa, gs_casa = max(gf_casa, 0.5), max(gs_casa, 0.5)
     gf_trasferta, gs_trasferta = max(gf_trasferta, 0.5), max(gs_trasferta, 0.5)
 
@@ -132,7 +158,7 @@ def analizza_partita_precisione_pro(
     matrice = np.zeros((max_gol, max_gol))
     for i in range(max_gol):
         for j in range(max_gol):
-            p_base = poisson.pmf(i, lambda_casa) * poisson.pmf(j, lambda_trasferta)
+            p_base = poisson_pmf(i, lambda_casa) * poisson_pmf(j, lambda_trasferta)
             correzione = tau_dixon_coles(i, j, lambda_casa, lambda_trasferta)
             matrice[i, j] = p_base * correzione
 
@@ -170,7 +196,7 @@ def analizza_partita_precisione_pro(
 # ---------------------------------------------------------
 if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
-        st.error("Inserisci la chiave API per continuare.")
+        st.error("Inserisci la chiave API di Football-Data.org per continuare.")
     else:
         headers = {"X-Auth-Token": api_key}
         BASE_URL = "https://api.football-data.org/v4/"
@@ -252,6 +278,14 @@ if 'partite' in st.session_state and st.session_state['partite']:
             m3, m4 = st.columns(2)
             m3.metric("Goal", f"{p['goal']:.1f}%")
             m4.metric("No Goal", f"{p['no_goal']:.1f}%")
+
+            # PULSANTE GEMINI CONTEXT AI
+            if gemini_api_key:
+                st.markdown("---")
+                if st.button(f"🧠 Analizza Contesto Notizie per {p['match']}", key=f"btn_{p['match']}"):
+                    with st.spinner("Gemini sta elaborando notizie e formazioni..."):
+                        report = analizza_contesto_con_gemini(p['match'], p['top_pick'], p['top_perc'], gemini_api_key)
+                        st.info(report)
 
     st.markdown("---")
 
