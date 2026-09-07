@@ -1,3 +1,15 @@
+import streamlit as st  # type: ignore[import-not-found]
+import requests
+import numpy as np  # type: ignore[import-not-found]
+from math import exp, factorial
+from datetime import datetime
+from google import genai
+
+
+def poisson_pmf(k, rate):
+    """Return the Poisson probability mass for k events."""
+    return exp(-rate) * (rate ** k) / factorial(k)
+
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
@@ -153,7 +165,7 @@ def analizza_partita_precisione_pro(
     matrice = np.zeros((max_gol, max_gol))
     for i in range(max_gol):
         for j in range(max_gol):
-            p_base = poisson.pmf(i, lambda_casa) * poisson.pmf(j, lambda_trasferta)
+            p_base = poisson_pmf(i, lambda_casa) * poisson_pmf(j, lambda_trasferta)
             correzione = tau_dixon_coles(i, j, lambda_casa, lambda_trasferta)
             matrice[i, j] = p_base * correzione
 
