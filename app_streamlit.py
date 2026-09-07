@@ -5,6 +5,7 @@ from scipy.stats import poisson  # type: ignore[import-not-found]
 from math import exp, factorial
 from datetime import datetime
 from google import genai
+
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
@@ -43,17 +44,16 @@ with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not b
     else:
         gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
     
-    # Mappatura Codici con Medie Gol Fatti/Subiti Specifiche del Campionato
     code_map = {
-        "🇮🇹 Serie A": {"code": "SA", "home_avg": 1.42, "away_avg": 1.12},
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"code": "PL", "home_avg": 1.55, "away_avg": 1.25},
-        "🇪🇸 La Liga": {"code": "PD", "home_avg": 1.38, "away_avg": 1.08},
-        "🇩🇪 Bundesliga": {"code": "BL1", "home_avg": 1.65, "away_avg": 1.35},
-        "🇫🇷 Ligue 1": {"code": "FL1", "home_avg": 1.40, "away_avg": 1.10},
-        "🇳🇱 Eredivisie": {"code": "DED", "home_avg": 1.68, "away_avg": 1.32},
-        "🇵🇹 Primeira Liga": {"code": "PPL", "home_avg": 1.45, "away_avg": 1.18},
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": {"code": "ELC", "home_avg": 1.35, "away_avg": 1.10},
-        "🇪🇺 Champions League": {"code": "CL", "home_avg": 1.60, "away_avg": 1.30}
+        "🇮🇹 Serie A": {"code": "SA", "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"code": "PL", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
+        "🇪🇸 La Liga": {"code": "PD", "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
+        "🇩🇪 Bundesliga": {"code": "BL1", "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
+        "🇫🇷 Ligue 1": {"code": "FL1", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
+        "🇳🇱 Eredivisie": {"code": "DED", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
+        "🇵🇹 Primeira Liga": {"code": "PPL", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": {"code": "ELC", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
+        "🇪🇺 Champions League": {"code": "CL", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57}
     }
     
     campionato_scelto = st.selectbox("Campionato / Coppa", list(code_map.keys()))
@@ -116,9 +116,9 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
         return f"⚠️ Impossibile recuperare l'analisi Gemini: {str(e)}"
 
 # ---------------------------------------------------------
-# LOGICA DATA SCIENCE CALIBRATA
+# LOGICA DATA SCIENCE PERFETTAMENTE CALIBRATA
 # ---------------------------------------------------------
-def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.11):
+def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.05):
     if x == 0 and y == 0:
         return 1 - (lambda_casa * lambda_trasferta * rho)
     elif x == 0 and y == 1:
@@ -154,7 +154,7 @@ def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=Tru
     dataset_finale = partite_filtrate if len(partite_filtrate) >= 2 else partite_generali
 
     if not dataset_finale:
-        return 1.30, 1.10, 0.5
+        return 1.35, 1.15, 0.5
 
     pesi = [np.exp(-i / half_life) for i in range(len(dataset_finale))]
     somma_pesi = sum(pesi)
@@ -171,20 +171,20 @@ def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=Tru
 def analizza_partita_precisione_pro(
     gf_casa, gs_casa, var_casa,
     gf_trasferta, gs_trasferta, var_trasferta,
-    media_camp_casa=1.45, media_camp_trasferta=1.15
+    media_camp_casa=1.45, media_camp_trasferta=1.15, btts_base=0.52
 ):
-    # Smoothing per evitare crolli drastici su gol attesi bassi
-    gf_casa, gs_casa = max(gf_casa, 0.8), max(gs_casa, 0.8)
-    gf_trasferta, gs_trasferta = max(gf_trasferta, 0.8), max(gs_trasferta, 0.8)
+    # Floor di sicurezza avanzato sui gol segnati e subiti
+    gf_casa, gs_casa = max(gf_casa, 1.0), max(gs_casa, 1.0)
+    gf_trasferta, gs_trasferta = max(gf_trasferta, 1.0), max(gs_trasferta, 1.0)
 
     attacco_casa = gf_casa / media_camp_casa
     difesa_casa = gs_casa / media_camp_trasferta
     attacco_trasferta = gf_trasferta / media_camp_trasferta
     difesa_trasferta = gs_trasferta / media_camp_casa
 
-    # Calcolo Gol Attesi (Lambda) con Floor di sicurezza
-    lambda_casa = max(0.85, attacco_casa * difesa_trasferta * media_camp_casa)
-    lambda_trasferta = max(0.85, attacco_trasferta * difesa_casa * media_camp_trasferta)
+    # Gol attesi (Lambda) calibrati con minimo 1.05
+    lambda_casa = max(1.05, attacco_casa * difesa_trasferta * media_camp_casa)
+    lambda_trasferta = max(1.05, attacco_trasferta * difesa_casa * media_camp_trasferta)
 
     max_gol = 6
     matrice = np.zeros((max_gol, max_gol))
@@ -202,17 +202,20 @@ def analizza_partita_precisione_pro(
 
     prob_under_25 = sum(matrice[i, j] for i in range(max_gol) for j in range(max_gol) if i + j <= 2) * 100
     prob_over_25 = 100 - prob_under_25
-    
-    # Calcolo bilanciato del mercato Goal (almeno 1 gol per parte)
+
+    # Calcolo bilanciato e ancorato per il mercato Goal (Both Teams To Score)
     p_casa_segna = 1 - poisson.pmf(0, lambda_casa)
     p_trasferta_segna = 1 - poisson.pmf(0, lambda_trasferta)
-    prob_goal = (p_casa_segna * p_trasferta_segna) * 100
-    prob_no_goal = 100 - prob_goal
+    prob_goal_raw = p_casa_segna * p_trasferta_segna
+    
+    # Ancoraggio dinamico con la media BTTS della lega per evitare distorsioni su campioni piccoli
+    prob_goal_calibrata = (0.65 * prob_goal_raw + 0.35 * btts_base) * 100
+    prob_no_goal = 100 - prob_goal_calibrata
 
     tutti_gli_esiti = {
         "1": prob_1, "X": prob_X, "2": prob_2,
         "Over 2.5": prob_over_25, "Under 2.5": prob_under_25,
-        "Goal": prob_goal, "No Goal": prob_no_goal
+        "Goal": prob_goal_calibrata, "No Goal": prob_no_goal
     }
 
     if mercato_preferito == "Solo 1X2":
@@ -220,20 +223,20 @@ def analizza_partita_precisione_pro(
     elif mercato_preferito == "Solo Over / Under":
         esiti_filtrati = {"Over 2.5": prob_over_25, "Under 2.5": prob_under_25}
     elif mercato_preferito == "Solo Goal / No Goal":
-        esiti_filtrati = {"Goal": prob_goal, "No Goal": prob_no_goal}
+        esiti_filtrati = {"Goal": prob_goal_calibrata, "No Goal": prob_no_goal}
     else:
         esiti_filtrati = tutti_gli_esiti
 
     esito_top = max(esiti_filtrati, key=esiti_filtrati.get)
 
     varianza_media = (var_casa + var_trasferta) / 2
-    fattore_stabilita = max(0.88, 1.0 - (varianza_media * 0.02))
+    fattore_stabilita = max(0.90, 1.0 - (varianza_media * 0.02))
     affidabilita_corretta = esiti_filtrati[esito_top] * fattore_stabilita
 
     return (
         esito_top, affidabilita_corretta,
         prob_1, prob_X, prob_2,
-        prob_over_25, prob_under_25, prob_goal, prob_no_goal,
+        prob_over_25, prob_under_25, prob_goal_calibrata, prob_no_goal,
         matrice
     )
 
@@ -285,7 +288,8 @@ if st.button("🚀 AVVIA ANALISI AI"):
                     ) = analizza_partita_precisione_pro(
                         gf_c, gs_c, var_c, gf_t, gs_t, var_t,
                         media_camp_casa=comp_info["home_avg"],
-                        media_camp_trasferta=comp_info["away_avg"]
+                        media_camp_trasferta=comp_info["away_avg"],
+                        btts_base=comp_info["btts_base"]
                     )
 
                     if perc_top >= min_confidence:
