@@ -153,7 +153,7 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# INTEGRATORE GEMINI CONTEXT AI
+# INTEGRATORE GEMINI CONTEXT AI (REST FIXED CALL)
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     if not key:
@@ -170,12 +170,15 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    key_clean = key.strip().replace('"', '').replace("'", "")
+    
+    # Nomi dei modelli ufficiali supportati dalle API Google AI Studio
+    modelli = ["gemini-2.0-flash", "gemini-1.5-flash"]
     
     for mod in modelli:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key.strip()}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
         try:
-            response = requests.post(url, json=payload, timeout=8)
+            response = requests.post(url, json=payload, timeout=10)
             if response.status_code == 200:
                 data = response.json()
                 if 'candidates' in data and len(data['candidates']) > 0:
@@ -183,7 +186,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
         except Exception:
             continue
 
-    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave sia attiva su Google AI Studio."
+    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta e attiva su Google AI Studio."
 
 # ---------------------------------------------------------
 # LOGICA DI CALCOLO MODELLO E QUOTE
