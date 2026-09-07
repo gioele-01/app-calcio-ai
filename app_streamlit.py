@@ -100,53 +100,57 @@ from google.genai import types
 
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
-    Funzione Gemini veloce con ricerca sul web e thinking disabilitato per evitare blocchi/lag.
+    Funzione Gemini con modelli aggiornati, search grounding e gestione degli errori 404.
     """
     if not key:
-        return "⚠️ Inserisci la chiave API di Google Gemini per abilitare l'analisi in tempo reale."
+        return "⚠️ Inserisci la chiave API di Google Gemini nelle impostazioni per abilitare l'analisi."
         
     prompt = f"""
     Cerca rapidamente sul web le ultime notizie di oggi per la partita: '{match_name}'.
-    Il nostro modello matematico prevede '{pronostico_math}' al {perc_math:.1f}%.
+    Il nostro modello matematico prevede '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
     
-    Rispondi in modo sintetico (max 3 frasi):
-    1. Infortuni, squalifiche o formazioni ufficiali dell'ultimo minuto.
-    2. Motivazioni o stanchezza da coppe.
-    3. Verdetto: conferma o sconsiglia il pronostico?
+    Rispondi in modo sintetico (massimo 3 frasi):
+    1. Infortuni, squalifiche o formazioni dell'ultimo minuto.
+    2. Motivazioni di classifica o stanchezza da coppe.
+    3. Verdetto: il contesto conferma o sconsiglia questo pronostico?
     """
     
-    try:
-        client = genai.Client(api_key=key)
-        
-        # Configuriamo Gemini per disabilitare il 'thinking' lento e usare la ricerca veloce
-        config = types.GenerateContentConfig(
-            tools=[types.Tool(google_search=types.GoogleSearch())],
-            thinking_config=types.ThinkingConfig(thinking_budget=0)  # Velocizza al massimo la risposta
-        )
-        
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt,
-            config=config
-        )
-        
-        if response and response.text:
-            return response.text
-        else:
-            return "⚠️ Nessuna notizia recente trovata per questo match."
-            
-    except Exception as e:
-        # Fallback ultra-veloce senza search se la ricerca va in timeout
+    # Lista dei modelli ufficiali in ordine di preferenza
+    modelli_da_provare = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']
+    
+    for modello in modelli_da_provare:
         try:
             client = genai.Client(api_key=key)
-            response = client.models.generate_content(
-                model='gemini-1.5-flash',
-                contents=f"Analizza brevemente il contesto della partita {match_name} con pronostico {pronostico_math} ({perc_math:.1f}%)."
+            
+            # Configurazione ricerca web e disabilitazione thinking lento
+            config = types.GenerateContentConfig(
+                tools=[types.Tool(google_search=types.GoogleSearch())],
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
             )
-            return response.text
-        except Exception as ex:
-            return f"⚠️ Impossibile completare l'analisi: {str(ex)}"
+            
+            response = client.models.generate_content(
+                model=modello,
+                contents=prompt,
+                config=config
+            )
+            
+            if response and response.text:
+                return response.text
+                
+        except Exception:
+            # Se la ricerca con quel modello fallisce, prova senza tools di ricerca prima di passare al modello successivo
+            try:
+                client = genai.Client(api_key=key)
+                response = client.models.generate_content(
+                    model=modello,
+                    contents=prompt
+                )
+                if response and response.text:
+                    return response.text
+            except Exception:
+                continue
 
+    return "⚠️ Impossibile contattare i modelli Gemini. Verifica che la tua API Key sia attiva su Google AI Studio."
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
