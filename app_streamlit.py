@@ -4,27 +4,26 @@ import numpy as np  # type: ignore[import-not-found]
 from scipy.stats import poisson  # type: ignore[import-not-found]
 from datetime import datetime
 
-# Configurazione responsive per Mobile
-st.set_page_config(page_title="Football AI Mobile", page_icon="⚽", layout="centered")
+# ---------------------------------------------------------
+# CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
+# ---------------------------------------------------------
+st.set_page_config(page_title="Football AI Pro", page_icon="⚽", layout="centered")
 
-# CSS Custom per ottimizzare la resa visiva su Smartphone
 st.markdown("""
 <style>
-    /* Riduce i margini superiori per schermi piccoli */
     .block-container { padding-top: 1.5rem; padding-bottom: 2rem; padding-left: 1rem; padding-right: 1rem; }
-    /* Aumenta la dimensione dei font dei pulsanti e delle metriche */
     .stButton>button { width: 100%; height: 3em; font-size: 16px; font-weight: bold; border-radius: 8px; }
-    [data-testid="stMetricValue"] { font-size: 20px !important; }
-    [data-testid="stMetricLabel"] { font-size: 12px !important; }
+    [data-testid="stMetricValue"] { font-size: 19px !important; }
+    [data-testid="stMetricLabel"] { font-size: 11px !important; }
     div[data-testid="stExpander"] { border-radius: 10px; border: 1px solid #374151; }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("⚽ Football AI Mobile")
-st.caption("Analisi statistica basata su Poisson & Dixon-Coles")
+st.title("⚽ Football AI Match Analyzer Pro")
+st.caption("Algoritmo Avanzato: Dixon-Coles, Weighted Home/Away & Decay Model")
 
 # ---------------------------------------------------------
-# MENU CONFIGURAZIONE IN-PAGE (PERFETTO PER SMARTPHONE)
+# MENU CONFIGURAZIONE IN-PAGE
 # ---------------------------------------------------------
 with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=True):
     api_key = st.text_input("Chiave API (Football-Data.org)", type="password")
@@ -52,9 +51,12 @@ with st.expander("🔍 **Filtri di Ricerca**", expanded=False):
         data_selezionata = st.date_input("Data partita", datetime.today())
 
 # ---------------------------------------------------------
-# LOGICA MATEMATICA DI POISSON & DIXON-COLES
+# LOGICA DATA SCIENCE: DIXON-COLES & EXPONENTIAL DECAY
 # ---------------------------------------------------------
 def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
+    """
+    Applica il fattore di correzione per i punteggi a basso numero di gol (0-0, 1-0, 0-1, 1-1)
+    """
     if x == 0 and y == 0:
         return 1 - (lambda_casa * lambda_trasferta * rho)
     elif x == 0 and y == 1:
@@ -66,10 +68,54 @@ def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
     else:
         return 1.0
 
-def analizza_partita_avanzata(gf_casa, gs_casa, gf_trasferta, gs_trasferta, media_camp_casa=1.45, media_camp_trasferta=1.15):
+
+def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=True, n_partite=6, half_life=3):
+    """
+    Calcola le medie gol specificità Casa/Trasferta con decadimento temporale esponenziale.
+    """
+    partite_filtrate = []
+    
+    for m in reversed(matches_giocati):
+        if m['status'] == 'FINISHED':
+            if is_home and m['homeTeam']['id'] == squadra_id:
+                partite_filtrate.append({
+                    'gf': m['score']['fullTime']['home'],
+                    'gs': m['score']['fullTime']['away']
+                })
+            elif not is_home and m['awayTeam']['id'] == squadra_id:
+                partite_filtrate.append({
+                    'gf': m['score']['fullTime']['away'],
+                    'gs': m['score']['fullTime']['home']
+                })
+            if len(partite_filtrate) == n_partite:
+                break
+
+    if not partite_filtrate:
+        return 1.2, 1.2, 0.5
+
+    # Pesi esponenziali (partite recenti = peso maggiore)
+    pesi = [np.exp(-i / half_life) for i in range(len(partite_filtrate))]
+    somma_pesi = sum(pesi)
+
+    gf_pesati = sum(p['gf'] * w for p, w in zip(partite_filtrate, pesi)) / somma_pesi
+    gs_pesati = sum(p['gs'] * w for p, w in zip(partite_filtrate, pesi)) / somma_pesi
+
+    # Varianza delle prestazioni
+    gol_totali = [p['gf'] + p['gs'] for p in partite_filtrate]
+    varianza = float(np.var(gol_totali)) if len(gol_totali) > 1 else 0.5
+
+    return gf_pesati, gs_pesati, varianza
+
+
+def analizza_partita_precisione_pro(
+    gf_casa, gs_casa, var_casa,
+    gf_trasferta, gs_trasferta, var_trasferta,
+    media_camp_casa=1.45, media_camp_trasferta=1.15
+):
     gf_casa, gs_casa = max(gf_casa, 0.1), max(gs_casa, 0.1)
     gf_trasferta, gs_trasferta = max(gf_trasferta, 0.1), max(gs_trasferta, 0.1)
 
+    # Indici di Attacco e Difesa ponderati per ruolo
     attacco_casa = gf_casa / media_camp_casa
     difesa_casa = gs_casa / media_camp_trasferta
     attacco_trasferta = gf_trasferta / media_camp_trasferta
@@ -103,38 +149,30 @@ def analizza_partita_avanzata(gf_casa, gs_casa, gf_trasferta, gs_trasferta, medi
         "Goal": prob_goal, "No Goal": prob_no_goal
     }
     esito_top = max(tutti_gli_esiti, key=tutti_gli_esiti.get)
-    
-    return esito_top, tutti_gli_esiti[esito_top], prob_1, prob_X, prob_2, prob_over_25, prob_under_25, prob_goal, prob_no_goal, matrice
 
-def ottieni_forma_recente(matches_giocati, squadra_id, n_partite=5):
-    ultime_partite = []
-    for m in reversed(matches_giocati):
-        if m['status'] == 'FINISHED':
-            if m['homeTeam']['id'] == squadra_id:
-                ultime_partite.append({'gf': m['score']['fullTime']['home'], 'gs': m['score']['fullTime']['away']})
-            elif m['awayTeam']['id'] == squadra_id:
-                ultime_partite.append({'gf': m['score']['fullTime']['away'], 'gs': m['score']['fullTime']['home']})
-            if len(ultime_partite) == n_partite:
-                break
+    # Correzione con indice di stabilità/varianza
+    varianza_media = (var_casa + var_trasferta) / 2
+    fattore_stabilita = max(0.7, 1.0 - (varianza_media * 0.05))
+    affidabilita_corretta = tutti_gli_esiti[esito_top] * fattore_stabilita
 
-    if not ultime_partite:
-        return 1.2, 1.2
-
-    media_gf = sum(p['gf'] for p in ultime_partite) / len(ultime_partite)
-    media_gs = sum(p['gs'] for p in ultime_partite) / len(ultime_partite)
-    return media_gf, media_gs
+    return (
+        esito_top, affidabilita_corretta,
+        prob_1, prob_X, prob_2,
+        prob_over_25, prob_under_25, prob_goal, prob_no_goal,
+        matrice
+    )
 
 # ---------------------------------------------------------
-# PULSANTE AVVIO ANALISI
+# EXECUTION ENGINE
 # ---------------------------------------------------------
-if st.button("🚀 AVVIA ANALISI PARTITE"):
+if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
         st.error("Inserisci la chiave API per continuare.")
     else:
         headers = {"X-Auth-Token": api_key}
         BASE_URL = "https://api.football-data.org/v4/"
 
-        with st.spinner("Elaborazione dati in corso..."):
+        with st.spinner("Calcolo metriche pesate e matrici probabilità..."):
             res_matches = requests.get(f"{BASE_URL}competitions/{comp_code}/matches", headers=headers)
 
         if res_matches.status_code == 200:
@@ -154,12 +192,19 @@ if st.button("🚀 AVVIA ANALISI PARTITE"):
 
                     casa = match['homeTeam']['name']
                     trasferta = match['awayTeam']['name']
+                    casa_id = match['homeTeam']['id']
+                    trasf_id = match['awayTeam']['id']
                     nome_match = f"{casa} vs {trasferta}"
 
-                    gf_c, gs_c = ottieni_forma_recente(all_matches, match['homeTeam']['id'], n_partite=5)
-                    gf_t, gs_t = ottieni_forma_recente(all_matches, match['awayTeam']['id'], n_partite=5)
+                    # Stats pesate Casa/Trasferta con Decay
+                    gf_c, gs_c, var_c = ottieni_stats_casa_trasferta_pesate(all_matches, casa_id, is_home=True, n_partite=6)
+                    gf_t, gs_t, var_t = ottieni_stats_casa_trasferta_pesate(all_matches, trasf_id, is_home=False, n_partite=6)
 
-                    top_pick, perc_top, p1, px, p2, p_over, p_under, p_goal, p_ng, matrice = analizza_partita_avanzata(gf_c, gs_c, gf_t, gs_t)
+                    (
+                        top_pick, perc_top, p1, px, p2,
+                        p_over, p_under, p_goal, p_ng,
+                        matrice
+                    ) = analizza_partita_precisione_pro(gf_c, gs_c, var_c, gf_t, gs_t, var_t)
 
                     if perc_top >= min_confidence:
                         partite_analizzate.append({
@@ -177,18 +222,19 @@ if st.button("🚀 AVVIA ANALISI PARTITE"):
             st.session_state['dettagli_matrici'] = dettagli_matrici
             st.session_state['campionato_corrente'] = campionato_scelto
         else:
-            st.error("Errore di connessione API. Verificare la chiave inserita.")
+            st.error("Errore di connessione API. Verificare la chiave inserita o i permessi del piano.")
 
 # ---------------------------------------------------------
-# VISUALIZZAZIONE RISULTATI MOBILE-FRIENDLY
+# INTERFACCIA UTENTE (RISULTATI & SCHEDINE)
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
     dettagli = st.session_state['dettagli_matrici']
     camp_nome = st.session_state.get('campionato_corrente', '')
 
-    st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite")
+    st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite con modello di precisione")
 
+    # Lista Schede Partita
     for p in partite:
         with st.expander(f"⚽ **{p['match']}**\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
             st.write("**Esito Finale (1X2)**")
@@ -207,21 +253,41 @@ if 'partite' in st.session_state and st.session_state['partite']:
             m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
     st.markdown("---")
+
+    # Generatore Multipla Automatico
+    st.subheader("🎟️ Generatore Schedina Multipla")
+    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=6, value=3)
+
+    if st.button("🎲 Genera Schedina Top Pick"):
+        partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
+        top_eventi = partite_ordinate[:num_eventi]
+
+        prob_combinata = 1.0
+        st.markdown("### 📜 La tua Schedina Consigliata:")
+
+        for idx, ev in enumerate(top_eventi, 1):
+            st.write(f"**{idx}. {ev['match']}** ({ev['data']}) ➔ **{ev['top_pick']}** (Confidenza: {ev['top_perc']:.1f}%)")
+            prob_combinata *= (ev['top_perc'] / 100)
+
+        st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {prob_combinata * 100:.1f}%")
+
+    st.markdown("---")
+
+    # Dettaglio Punteggi Esatti
     st.subheader("📊 Matrice Punteggio Esatto")
     match_scelto = st.selectbox("Seleziona Partita:", list(dettagli.keys()))
 
     if match_scelto:
         casa, trasferta, matrice = dettagli[match_scelto]
         st.caption(f"{casa} vs {trasferta}")
-        
-        # Mostra i primi 6 punteggi più probabili in formato lista verticale per il telefono
+
         punteggi = []
         for i in range(4):
             for j in range(4):
                 punteggi.append((f"{i} - {j}", matrice[i, j] * 100))
-        
+
         punteggi_ordinati = sorted(punteggi, key=lambda x: x[1], reverse=True)[:6]
-        
+
         col_a, col_b = st.columns(2)
         for idx, (punteggio, prob) in enumerate(punteggi_ordinati):
             if idx % 2 == 0:
@@ -231,3 +297,26 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
 elif 'partite' in st.session_state:
     st.warning("Nessuna partita trovata con i filtri correnti.")
+    # ---------------------------------------------------------
+# GENERATORE AUTOMATICO DI SCHEDINA MULTIPLA
+# ---------------------------------------------------------
+if 'partite' in st.session_state and st.session_state['partite']:
+    st.markdown("---")
+    st.subheader("🎟️ Generatore Schedina Multipla")
+    
+    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=6, value=3)
+    
+    if st.button("🎲 Genera Schedina Top Pick"):
+        # Ordina le partite per affidabilità decrescente
+        partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
+        
+        top_eventi = partite_ordinate[:num_eventi]
+        
+        prob_combinata = 1.0
+        st.markdown("### 📜 La tua Schedina Consigliata:")
+        
+        for idx, ev in enumerate(top_eventi, 1):
+            st.write(f"**{idx}. {ev['match']}** ({ev['data']}) ➔ **{ev['top_pick']}** (Confidenza: {ev['top_perc']:.1f}%)")
+            prob_combinata *= (ev['top_perc'] / 100)
+            
+        st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {prob_combinata * 100:.1f}%")
