@@ -128,22 +128,24 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# FETCHING PARTITE OTTIMIZZATO (LIGHTWEIGHT & FAST)
+# FETCHING PARTITE CON DIAGNOSTICA ERRORI INTELLIGENTE
 # ---------------------------------------------------------
-@st.cache_data(ttl=1800)
 def scarica_partite_api_football(league_id, key, filtro_data_tipo, data_specif):
-    """
-    Recupera le partite filtrando per data/prossimi eventi per evitare timeout e payload pesanti.
-    """
+    if not key:
+        return None, "⚠️ Nessuna chiave API fornita. Inserisci la X-RapidAPI-Key."
+
+    key_pulita = key.strip().replace('"', '').replace("'", "")
+    
     headers = {
-        "X-RapidAPI-Key": key.strip(),
+        "X-RapidAPI-Key": key_pulita,
         "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
     }
     
     anno_curr = datetime.now().year # 2026
     oggi_str = datetime.today().strftime('%Y-%m-%d')
     
-    # Prova la stagione corrente e quella precedente
+    # Tentativo sulle stagioni 2026 e 2025
+    ultimi_errori = []
     for season in [anno_curr, anno_curr - 1]:
         if filtro_data_tipo == "Solo Oggi":
             url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&date={oggi_str}"
@@ -151,19 +153,22 @@ def scarica_partite_api_football(league_id, key, filtro_data_tipo, data_specif):
             dt_str = data_specif.strftime('%Y-%m-%d')
             url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&date={dt_str}"
         else:
-            # Per "Tutte le prossime", recupera i prossimi 15 match in programma
             url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={season}&next=15"
 
         try:
-            res = requests.get(url, headers=headers, timeout=8)
+            res = requests.get(url, headers=headers, timeout=10)
             if res.status_code == 200:
                 data = res.json().get("response", [])
                 if data:
-                    return data
-        except Exception:
-            continue
+                    return data, None
+                else:
+                    ultimi_errori.append(f"Stagione {season}: risposta vuota dall'API (nessun evento in programma).")
+            else:
+                return None, f"Errore API (Codice {res.status_code}): {res.text}"
+        except Exception as e:
+            ultimi_errori.append(f"Errore di connessione: {str(e)}")
 
-    return []
+    return None, " | ".join(ultimi_errori)
 
 # ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI (REST FAST CALL)
@@ -331,7 +336,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
         st.error("Inserisci la chiave RapidAPI-Football per continuare.")
     else:
         with st.spinner("Scaricamento dati e calcolo matrici probabilità..."):
-            all_matches = scarica_partite_api_football(
+            all_matches, error_msg = scarica_partite_api_football(
                 league_id, api_key, filtro_data, data_selezionata
             )
 
@@ -382,7 +387,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
             st.session_state['campionato_corrente'] = campionato_scelto
             st.rerun()
         else:
-            st.error("Nessuna partita trovata per questa data o lega. Prova a selezionare 'Tutte le prossime' nel filtro data.")
+            st.error(f"❌ Dettaglio Errore API: {error_msg}")
 # ---------------------------------------------------------
 # INTERFACCIA UTENTE
 # ---------------------------------------------------------
