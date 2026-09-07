@@ -1,3 +1,10 @@
+import streamlit as st  # type: ignore[import-not-found]
+import requests
+import numpy as np  # type: ignore[import-not-found]
+from scipy.stats import poisson  # type: ignore[import-not-found]
+from math import exp, factorial
+from datetime import datetime
+from google import genai
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
