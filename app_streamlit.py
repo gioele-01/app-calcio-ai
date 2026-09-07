@@ -97,10 +97,8 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     if not key:
-        return "⚠️ Inserisci la chiave API di Google Gemini nella sezione Configurazione in alto per abilitare l'analisi."
+        return "⚠️ Inserisci la chiave API di Google Gemini nella sezione Configurazione per abilitare l'analisi."
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
-    
     prompt = f"""
     Sei un analista tattico di calcio esperto. 
     Il nostro modello matematico-statistico prevede per la partita '{match_name}' l'esito '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
@@ -115,20 +113,22 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
         "contents": [{"parts": [{"text": prompt}]}]
     }
     
-    try:
-        response = requests.post(url, json=payload, timeout=7)
-        if response.status_code == 200:
-            data = response.json()
-            return data['candidates'][0]['content']['parts'][0]['text']
-        elif response.status_code in [400, 403]:
-            return "⚠️ Chiave API Gemini non valida. Verificala su Google AI Studio."
-        else:
-            return f"⚠️ Errore API Gemini (Codice {response.status_code}). Riprova tra qualche secondo."
-    except requests.exceptions.Timeout:
-        return "⏱️ Tempo scaduto: la risposta ha impiegato più di 7 secondi. Riprova."
-    except Exception as e:
-        return f"⚠️ Errore di connessione: {str(e)}"
+    # Prova i modelli disponibili in ordine di preferenza
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    
+    for mod in modelli:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key}"
+        try:
+            response = requests.post(url, json=payload, timeout=6)
+            if response.status_code == 200:
+                data = response.json()
+                return data['candidates'][0]['content']['parts'][0]['text']
+            elif response.status_code in [400, 403]:
+                return "⚠️ Chiave API Gemini non valida. Verificala su Google AI Studio."
+        except Exception:
+            continue
 
+    return "⚠️ Impossibile contattare i server Gemini. Riprova tra qualche istante."
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
