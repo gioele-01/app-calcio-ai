@@ -1,53 +1,59 @@
-import streamlit as st
-import requests
-import numpy as np
-import pandas as pd
-from math import exp, factorial
+import streamlit as st  # type: ignore[import-not-found]
+import requests  # type: ignore[import-not-found, import-untyped]
+import numpy as np  # type: ignore[import-not-found]
+from scipy.stats import poisson  # type: ignore[import-not-found]
 from datetime import datetime
 
-st.set_page_config(page_title="Football AI Analyzer Pro", page_icon="⚽", layout="wide")
+# Configurazione responsive per Mobile
+st.set_page_config(page_title="Football AI Mobile", page_icon="⚽", layout="centered")
 
-st.title("⚽ Football AI Match Analyzer (Versione Multi-Campionato)")
-st.markdown("Analisi statistica e predittiva basata su **Poisson Modificato (Dixon-Coles)** e **Forma Recente**.")
+# CSS Custom per ottimizzare la resa visiva su Smartphone
+st.markdown("""
+<style>
+    /* Riduce i margini superiori per schermi piccoli */
+    .block-container { padding-top: 1.5rem; padding-bottom: 2rem; padding-left: 1rem; padding-right: 1rem; }
+    /* Aumenta la dimensione dei font dei pulsanti e delle metriche */
+    .stButton>button { width: 100%; height: 3em; font-size: 16px; font-weight: bold; border-radius: 8px; }
+    [data-testid="stMetricValue"] { font-size: 20px !important; }
+    [data-testid="stMetricLabel"] { font-size: 12px !important; }
+    div[data-testid="stExpander"] { border-radius: 10px; border: 1px solid #374151; }
+</style>
+""", unsafe_allow_html=True)
 
-# ---------------------------------------------------------
-# SIDEBAR - CONFIGURAZIONE E MAPPATURA CAMPIONATI
-# ---------------------------------------------------------
-st.sidebar.header("⚙️ Impostazioni API & Filtri")
-api_key = st.sidebar.text_input("Chiave API (Football-Data.org)", type="password")
-
-# Dizionario esteso dei campionati inclusi nel piano Free
-code_map = {
-    "🇮🇹 Serie A (Italia)": "SA",
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League (Inghilterra)": "PL",
-    "🇪🇸 La Liga (Spagna)": "PD",
-    "🇩🇪 Bundesliga (Germania)": "BL1",
-    "🇫🇷 Ligue 1 (Francia)": "FL1",
-    "🇳🇱 Eredivisie (Olanda)": "DED",
-    "🇵🇹 Primeira Liga (Portogallo)": "PPL",
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship (Inghilterra)": "ELC",
-    "🇪🇺 Champions League": "CL"
-}
-
-campionato_scelto = st.sidebar.selectbox("Seleziona Campionato / Coppa", list(code_map.keys()))
-comp_code = code_map[campionato_scelto]
-
-st.sidebar.markdown("---")
-st.sidebar.header("🔍 Filtri Analisi")
-min_confidence = st.sidebar.slider("Affidabilità minima Pronostico (%)", min_value=50, max_value=95, value=65, step=5)
-
-filtro_data = st.sidebar.radio("Filtro Data Matches", ["Tutte le prossime", "Solo partite di Oggi", "Seleziona Data Specifica"])
-data_selezionata = None
-if filtro_data == "Seleziona Data Specifica":
-    data_selezionata = st.sidebar.date_input("Data partita", datetime.today())
+st.title("⚽ Football AI Mobile")
+st.caption("Analisi statistica basata su Poisson & Dixon-Coles")
 
 # ---------------------------------------------------------
-# LOGICA AVANZATA: DIXON-COLES (CORREZIONE POISSON)
+# MENU CONFIGURAZIONE IN-PAGE (PERFETTO PER SMARTPHONE)
 # ---------------------------------------------------------
-def poisson_pmf(k, lambd):
-    """Calcola la massa di probabilità di Poisson senza SciPy."""
-    return exp(-lambd) * (lambd ** k) / factorial(k)
+with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=True):
+    api_key = st.text_input("Chiave API (Football-Data.org)", type="password")
+    
+    code_map = {
+        "🇮🇹 Serie A": "SA",
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": "PL",
+        "🇪🇸 La Liga": "PD",
+        "🇩🇪 Bundesliga": "BL1",
+        "🇫🇷 Ligue 1": "FL1",
+        "🇳🇱 Eredivisie": "DED",
+        "🇵🇹 Primeira Liga": "PPL",
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": "ELC",
+        "🇪🇺 Champions League": "CL"
+    }
+    
+    campionato_scelto = st.selectbox("Campionato / Coppa", list(code_map.keys()))
+    comp_code = code_map[campionato_scelto]
 
+with st.expander("🔍 **Filtri di Ricerca**", expanded=False):
+    min_confidence = st.slider("Affidabilità minima (%)", min_value=50, max_value=95, value=65, step=5)
+    filtro_data = st.radio("Filtro Data", ["Tutte le prossime", "Solo Oggi", "Seleziona Data"])
+    data_selezionata = None
+    if filtro_data == "Seleziona Data":
+        data_selezionata = st.date_input("Data partita", datetime.today())
+
+# ---------------------------------------------------------
+# LOGICA MATEMATICA DI POISSON & DIXON-COLES
+# ---------------------------------------------------------
 def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
     if x == 0 and y == 0:
         return 1 - (lambda_casa * lambda_trasferta * rho)
@@ -76,7 +82,7 @@ def analizza_partita_avanzata(gf_casa, gs_casa, gf_trasferta, gs_trasferta, medi
     matrice = np.zeros((max_gol, max_gol))
     for i in range(max_gol):
         for j in range(max_gol):
-            p_base = poisson_pmf(i, lambda_casa) * poisson_pmf(j, lambda_trasferta)
+            p_base = poisson.pmf(i, lambda_casa) * poisson.pmf(j, lambda_trasferta)
             correzione = tau_dixon_coles(i, j, lambda_casa, lambda_trasferta)
             matrice[i, j] = p_base * correzione
 
@@ -100,23 +106,14 @@ def analizza_partita_avanzata(gf_casa, gs_casa, gf_trasferta, gs_trasferta, medi
     
     return esito_top, tutti_gli_esiti[esito_top], prob_1, prob_X, prob_2, prob_over_25, prob_under_25, prob_goal, prob_no_goal, matrice
 
-# ---------------------------------------------------------
-# CALCOLO FORMA RECENTE DALL'API
-# ---------------------------------------------------------
 def ottieni_forma_recente(matches_giocati, squadra_id, n_partite=5):
     ultime_partite = []
     for m in reversed(matches_giocati):
         if m['status'] == 'FINISHED':
             if m['homeTeam']['id'] == squadra_id:
-                ultime_partite.append({
-                    'gf': m['score']['fullTime']['home'],
-                    'gs': m['score']['fullTime']['away']
-                })
+                ultime_partite.append({'gf': m['score']['fullTime']['home'], 'gs': m['score']['fullTime']['away']})
             elif m['awayTeam']['id'] == squadra_id:
-                ultime_partite.append({
-                    'gf': m['score']['fullTime']['away'],
-                    'gs': m['score']['fullTime']['home']
-                })
+                ultime_partite.append({'gf': m['score']['fullTime']['away'], 'gs': m['score']['fullTime']['home']})
             if len(ultime_partite) == n_partite:
                 break
 
@@ -128,16 +125,16 @@ def ottieni_forma_recente(matches_giocati, squadra_id, n_partite=5):
     return media_gf, media_gs
 
 # ---------------------------------------------------------
-# RUN ANALISI
+# PULSANTE AVVIO ANALISI
 # ---------------------------------------------------------
-if st.sidebar.button("🚀 Avvia Analisi"):
+if st.button("🚀 AVVIA ANALISI PARTITE"):
     if not api_key:
-        st.error("Inserisci una chiave API valida nella barra laterale.")
+        st.error("Inserisci la chiave API per continuare.")
     else:
         headers = {"X-Auth-Token": api_key}
         BASE_URL = "https://api.football-data.org/v4/"
 
-        with st.spinner(f"Scaricamento dati e forma recente per {campionato_scelto}..."):
+        with st.spinner("Elaborazione dati in corso..."):
             res_matches = requests.get(f"{BASE_URL}competitions/{comp_code}/matches", headers=headers)
 
         if res_matches.status_code == 200:
@@ -150,23 +147,19 @@ if st.sidebar.button("🚀 Avvia Analisi"):
                 if match['status'] in ['SCHEDULED', 'TIMED']:
                     data_partita = match['utcDate'][:10]
 
-                    if filtro_data == "Solo partite di Oggi" and data_partita != oggi_str:
+                    if filtro_data == "Solo Oggi" and data_partita != oggi_str:
                         continue
-                    elif filtro_data == "Seleziona Data Specifica" and data_partita != data_selezionata.strftime('%Y-%m-%d'):
+                    elif filtro_data == "Seleziona Data" and data_partita != data_selezionata.strftime('%Y-%m-%d'):
                         continue
 
                     casa = match['homeTeam']['name']
                     trasferta = match['awayTeam']['name']
-                    casa_id = match['homeTeam']['id']
-                    trasf_id = match['awayTeam']['id']
                     nome_match = f"{casa} vs {trasferta}"
 
-                    gf_c, gs_c = ottieni_forma_recente(all_matches, casa_id, n_partite=5)
-                    gf_t, gs_t = ottieni_forma_recente(all_matches, trasf_id, n_partite=5)
+                    gf_c, gs_c = ottieni_forma_recente(all_matches, match['homeTeam']['id'], n_partite=5)
+                    gf_t, gs_t = ottieni_forma_recente(all_matches, match['awayTeam']['id'], n_partite=5)
 
-                    top_pick, perc_top, p1, px, p2, p_over, p_under, p_goal, p_ng, matrice = analizza_partita_avanzata(
-                        gf_c, gs_c, gf_t, gs_t
-                    )
+                    top_pick, perc_top, p1, px, p2, p_over, p_under, p_goal, p_ng, matrice = analizza_partita_avanzata(gf_c, gs_c, gf_t, gs_t)
 
                     if perc_top >= min_confidence:
                         partite_analizzate.append({
@@ -184,48 +177,57 @@ if st.sidebar.button("🚀 Avvia Analisi"):
             st.session_state['dettagli_matrici'] = dettagli_matrici
             st.session_state['campionato_corrente'] = campionato_scelto
         else:
-            st.error(f"Errore API ({res_matches.status_code}): Verificare la chiave o i limiti di accesso per questa competizione.")
+            st.error("Errore di connessione API. Verificare la chiave inserita.")
 
 # ---------------------------------------------------------
-# INTERFACCIA VISIVA
+# VISUALIZZAZIONE RISULTATI MOBILE-FRIENDLY
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
     dettagli = st.session_state['dettagli_matrici']
     camp_nome = st.session_state.get('campionato_corrente', '')
 
-    st.success(f"Analisi completata per **{camp_nome}**: trovate **{len(partite)}** partite corrispondenti ai filtri!")
+    st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite")
 
-    st.subheader("📋 Pronostici Partite")
     for p in partite:
-        with st.expander(f"⚽ **{p['match']}** ({p['data']})  ➔  PRONOSTICO TOP: **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
-            # Prima riga: 1X2
-            col1, col2, col3 = st.columns(3)
-            col1.metric("1 (Vittoria Casa)", f"{p['p1']:.1f}%")
-            col2.metric("X (Pareggio)", f"{p['px']:.1f}%")
-            col3.metric("2 (Vittoria Trasferta)", f"{p['p2']:.1f}%")
+        with st.expander(f"⚽ **{p['match']}**\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
+            st.write("**Esito Finale (1X2)**")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("1", f"{p['p1']:.1f}%")
+            c2.metric("X", f"{p['px']:.1f}%")
+            c3.metric("2", f"{p['p2']:.1f}%")
 
-            st.markdown("---")
+            st.write("**Mercati Gol**")
+            m1, m2 = st.columns(2)
+            m1.metric("Over 2.5", f"{p['over']:.1f}%")
+            m2.metric("Under 2.5", f"{p['under']:.1f}%")
 
-            # Seconda riga: Over/Under e Goal/No Goal
-            c1, c2, c3, c4 = st.columns(4)
-            c1.metric("Over 2.5 Gol", f"{p['over']:.1f}%")
-            c2.metric("Under 2.5 Gol", f"{p['under']:.1f}%")
-            c3.metric("Goal (Entrambe segnano)", f"{p['goal']:.1f}%")
-            c4.metric("No Goal", f"{p['no_goal']:.1f}%")
+            m3, m4 = st.columns(2)
+            m3.metric("Goal", f"{p['goal']:.1f}%")
+            m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
     st.markdown("---")
-    st.subheader("📊 Dettaglio Risultati Esatti per Singolo Match")
-    match_scelto = st.selectbox("Seleziona una partita per analizzare la matrice di punteggi:", list(dettagli.keys()))
+    st.subheader("📊 Matrice Punteggio Esatto")
+    match_scelto = st.selectbox("Seleziona Partita:", list(dettagli.keys()))
 
     if match_scelto:
         casa, trasferta, matrice = dettagli[match_scelto]
-        st.markdown(f"**Probabilità Punteggi Esatti: {casa} (righe) vs {trasferta} (colonne)**")
-        for i in range(5):
-            cols = st.columns(5)
-            for j in range(5):
-                prob = matrice[i, j] * 100
-                cols[j].metric(f"Risultato {i}-{j}", f"{prob:.1f}%")
+        st.caption(f"{casa} vs {trasferta}")
+        
+        # Mostra i primi 6 punteggi più probabili in formato lista verticale per il telefono
+        punteggi = []
+        for i in range(4):
+            for j in range(4):
+                punteggi.append((f"{i} - {j}", matrice[i, j] * 100))
+        
+        punteggi_ordinati = sorted(punteggi, key=lambda x: x[1], reverse=True)[:6]
+        
+        col_a, col_b = st.columns(2)
+        for idx, (punteggio, prob) in enumerate(punteggi_ordinati):
+            if idx % 2 == 0:
+                col_a.metric(f"Risultato {punteggio}", f"{prob:.1f}%")
+            else:
+                col_b.metric(f"Risultato {punteggio}", f"{prob:.1f}%")
 
 elif 'partite' in st.session_state:
-    st.warning("Nessuna partita trovata con i filtri selezionati per questo campionato.")
+    st.warning("Nessuna partita trovata con i filtri correnti.")
