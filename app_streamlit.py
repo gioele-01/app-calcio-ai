@@ -1,10 +1,3 @@
-import streamlit as st  # type: ignore[import-not-found]
-import requests
-import numpy as np
-from math import exp, factorial
-from datetime import datetime
-from google import genai
-
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
@@ -31,13 +24,13 @@ gemini_key_secret = st.secrets.get("GEMINI_API_KEY", "")
 
 with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not bool(api_key_secret)):
     if api_key_secret:
-        st.success("✅ Chiave Football-Data carica in automatico dai Secrets!")
+        st.success("✅ Chiave Football-Data caricata in automatico dai Secrets!")
         api_key = api_key_secret
     else:
         api_key = st.text_input("Chiave API (Football-Data.org)", type="password")
 
     if gemini_key_secret:
-        st.success("✅ Chiave Google Gemini carica in automatico dai Secrets!")
+        st.success("✅ Chiave Google Gemini caricata in automatico dai Secrets!")
         gemini_api_key = gemini_key_secret
     else:
         gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
