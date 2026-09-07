@@ -153,7 +153,7 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# INTEGRATORE GEMINI CON CONDIZIONE DI DIAGNOSTICA
+# INTEGRATORE GEMINI CONTEXT AI (AGGIORNATO AI NUOVI MODELLI)
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     if not key:
@@ -173,8 +173,8 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # Prova con i modelli stabili di Google Gemini
-    modelli = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    # Modelli attivi e supportati dalle API Google AI Studio v1beta
+    modelli = ["gemini-2.5-flash", "gemini-2.5-pro"]
     dettagli_errori = []
     
     for mod in modelli:
