@@ -153,12 +153,14 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# INTEGRATORE GEMINI CONTEXT AI (REST FIXED CALL)
+# INTEGRATORE GEMINI CON CONDIZIONE DI DIAGNOSTICA
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     if not key:
-        return "⚠️ Inserisci la chiave API di Google Gemini nella sezione Configurazione in alto."
+        return "⚠️ Nessuna chiave API fornita. Controlla GEMINI_API_KEY nei Secrets."
 
+    key_clean = key.strip().replace('"', '').replace("'", "")
+    
     prompt = f"""
     Sei un analista tattico di calcio esperto. 
     Il nostro modello matematico-statistico prevede per la partita '{match_name}' l'esito '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
@@ -170,10 +172,10 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    key_clean = key.strip().replace('"', '').replace("'", "")
     
-    # Nomi dei modelli ufficiali supportati dalle API Google AI Studio
+    # Prova con i modelli stabili di Google Gemini
     modelli = ["gemini-2.0-flash", "gemini-1.5-flash"]
+    dettagli_errori = []
     
     for mod in modelli:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
@@ -183,10 +185,12 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
                 data = response.json()
                 if 'candidates' in data and len(data['candidates']) > 0:
                     return data['candidates'][0]['content']['parts'][0]['text']
-        except Exception:
-            continue
+            else:
+                dettagli_errori.append(f"{mod} -> Codice {response.status_code}: {response.text}")
+        except Exception as e:
+            dettagli_errori.append(f"{mod} -> Errore connessione: {str(e)}")
 
-    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta e attiva su Google AI Studio."
+    return f"❌ Errore Gemini: {' | '.join(dettagli_errori)}"
 
 # ---------------------------------------------------------
 # LOGICA DI CALCOLO MODELLO E QUOTE
