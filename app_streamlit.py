@@ -48,7 +48,6 @@ with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(api_key
 # FILTRI DI RICERCA & SELEZIONE CAMPIONATO
 # ---------------------------------------------------------
 with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
-    # Mappatura Codici con Medie Gol Fatti/Subiti Specifiche del Campionato
     code_map = {
         "🇮🇹 Serie A": {"code": "SA", "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
         "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"code": "PL", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
@@ -94,26 +93,21 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# INTEGRATORE GEMINI CONTEXT AI
+# INTEGRATORE GEMINI CONTEXT AI (REST FAST CALL)
 # ---------------------------------------------------------
-import requests
-
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
-    """
-    Chiamata diretta REST all'API di Gemini: ultra-veloce, zero blocchi e zero caricamenti infiniti.
-    """
     if not key:
-        return "⚠️ Inserisci la chiave API di Google Gemini per abilitare l'analisi in tempo reale."
+        return "⚠️ Inserisci la chiave API di Google Gemini nella sezione Configurazione in alto per abilitare l'analisi."
 
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
     
     prompt = f"""
-    Sei un analista tattico di calcio. 
+    Sei un analista tattico di calcio esperto. 
     Il nostro modello matematico-statistico prevede per la partita '{match_name}' l'esito '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
     
-    Analizza brevemente (massimo 3 frasi sintetiche) il contesto di questa partita:
-    1. Eventuali assenze o infortuni rilevanti per questo match.
-    2. Motivazioni di classifica o turnover.
+    Analizza brevemente (massimo 3-4 frasi sintetiche) il contesto di questa partita:
+    1. Eventuali assenze, squalifiche o infortuni rilevanti per le due squadre.
+    2. Motivazioni di classifica o stanchezza da impegni ravvicinati/turnover.
     3. Concludi indicando se il contesto conferma o sconsiglia il pronostico.
     """
     
@@ -122,22 +116,19 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     }
     
     try:
-        # Timeout rigido di 6 secondi per evitare il caricamento all'infinito
-        response = requests.post(url, json=payload, timeout=6)
-        
+        response = requests.post(url, json=payload, timeout=7)
         if response.status_code == 200:
             data = response.json()
-            text = data['candidates'][0]['content']['parts'][0]['text']
-            return text
-        elif response.status_code == 400 or response.status_code == 403:
-            return "⚠️ Chiave API Gemini non valida. Controlla la chiave inserita in Google AI Studio."
+            return data['candidates'][0]['content']['parts'][0]['text']
+        elif response.status_code in [400, 403]:
+            return "⚠️ Chiave API Gemini non valida. Verificala su Google AI Studio."
         else:
             return f"⚠️ Errore API Gemini (Codice {response.status_code}). Riprova tra qualche secondo."
-            
     except requests.exceptions.Timeout:
-        return "⏱️ Tempo di attesa scaduto: il server Gemini ha impiegato troppo tempo a rispondere. Riprova."
+        return "⏱️ Tempo scaduto: la risposta ha impiegato più di 7 secondi. Riprova."
     except Exception as e:
-        return f"⚠️ Impossibile recuperare l'analisi: {str(e)}"
+        return f"⚠️ Errore di connessione: {str(e)}"
+
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
@@ -330,7 +321,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
             st.error("Errore di connessione API. Verificare la chiave inserita o i permessi del piano.")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE (RISULTATI & SCHEDINE)
+# INTERFACCIA UTENTE (RISULTATI & GEMINI)
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
@@ -358,25 +349,21 @@ if 'partite' in st.session_state and st.session_state['partite']:
             m3.metric("Goal", f"{p['goal']:.1f}%")
             m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
-            # GESTIONE SICURA GEMINI CON SESSION STATE (EVITA CARICAMENTO INFINITO)
-if gemini_api_key:
-    st.markdown("---")
-    match_key = f"gemini_report_{p['match']}"
-    
-    # Se il report esiste già in memoria, mostralo e aggiungi pulsante di aggiornamento
-    if match_key in st.session_state:
-        st.info(st.session_state[match_key])
-        if st.button(f"🔄 Aggiorna Analisi", key=f"reload_{idx}_{p['match']}"):
-            del st.session_state[match_key]
-            st.rerun()
-    else:
-        if st.button(f"🧠 Analizza Contesto Notizie", key=f"btn_{idx}_{p['match']}"):
-            with st.spinner("Gemini sta analizzando la partita..."):
-                report = analizza_contesto_con_gemini(
-                    p['match'], p['top_pick'], p['top_perc'], gemini_api_key
-                )
-                st.session_state[match_key] = report
-                st.rerun()
+            # SEZIONE REPORT GEMINI SEMPRE VISIBILE
+            st.markdown("---")
+            if match_key in st.session_state:
+                st.info(st.session_state[match_key])
+                if st.button("🔄 Aggiorna Report", key=f"reload_{idx}_{p['match']}"):
+                    del st.session_state[match_key]
+                    st.rerun()
+            else:
+                if st.button("🧠 Analizza Contesto Notizie", key=f"btn_{idx}_{p['match']}"):
+                    with st.spinner("Gemini sta analizzando la partita..."):
+                        report = analizza_contesto_con_gemini(
+                            p['match'], p['top_pick'], p['top_perc'], gemini_api_key
+                        )
+                        st.session_state[match_key] = report
+                        st.rerun()
 
     st.markdown("---")
 
