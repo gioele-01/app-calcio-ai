@@ -96,7 +96,6 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
 # ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
-from google.genai import types
 
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
