@@ -31,7 +31,7 @@ st.caption("Algoritmo Calibrato: Dixon-Coles, Dynamic Goal Markets & Gemini Cont
 api_key_secret = st.secrets.get("FOOTBALL_API_KEY", "")
 gemini_key_secret = st.secrets.get("GEMINI_API_KEY", "")
 
-with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not bool(api_key_secret)):
+with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(api_key_secret)):
     if api_key_secret:
         st.success("✅ Chiave Football-Data caricata in automatico dai Secrets!")
         api_key = api_key_secret
@@ -43,7 +43,12 @@ with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not b
         gemini_api_key = gemini_key_secret
     else:
         gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
-    
+
+# ---------------------------------------------------------
+# FILTRI DI RICERCA & SELEZIONE CAMPIONATO
+# ---------------------------------------------------------
+with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
+    # Mappatura Codici con Medie Gol Fatti/Subiti Specifiche del Campionato
     code_map = {
         "🇮🇹 Serie A": {"code": "SA", "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
         "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"code": "PL", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
@@ -56,20 +61,16 @@ with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not b
         "🇪🇺 Champions League": {"code": "CL", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57}
     }
     
-    campionato_scelto = st.selectbox("Campionato / Coppa", list(code_map.keys()))
+    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Coppa", list(code_map.keys()))
     comp_info = code_map[campionato_scelto]
     comp_code = comp_info["code"]
 
-# ---------------------------------------------------------
-# FILTRI DI RICERCA
-# ---------------------------------------------------------
-with st.expander("🔍 **Filtri di Ricerca & Mercati**", expanded=True):
     col_f1, col_f2 = st.columns(2)
     
     with col_f1:
         filtro_data = st.selectbox(
             "📅 Selezione Data", 
-            ["Tutte le prossime", "Solo Oggi", "Seleziona Data Specifica"]
+            ["Solo Oggi", "Tutte le prossime", "Seleziona Data Specifica"]
         )
     
     with col_f2:
@@ -116,7 +117,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
         return f"⚠️ Impossibile recuperare l'analisi Gemini: {str(e)}"
 
 # ---------------------------------------------------------
-# LOGICA DATA SCIENCE PERFETTAMENTE CALIBRATA
+# LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
 def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.05):
     if x == 0 and y == 0:
@@ -173,7 +174,6 @@ def analizza_partita_precisione_pro(
     gf_trasferta, gs_trasferta, var_trasferta,
     media_camp_casa=1.45, media_camp_trasferta=1.15, btts_base=0.52
 ):
-    # Floor di sicurezza avanzato sui gol segnati e subiti
     gf_casa, gs_casa = max(gf_casa, 1.0), max(gs_casa, 1.0)
     gf_trasferta, gs_trasferta = max(gf_trasferta, 1.0), max(gs_trasferta, 1.0)
 
@@ -182,7 +182,6 @@ def analizza_partita_precisione_pro(
     attacco_trasferta = gf_trasferta / media_camp_trasferta
     difesa_trasferta = gs_trasferta / media_camp_casa
 
-    # Gol attesi (Lambda) calibrati con minimo 1.05
     lambda_casa = max(1.05, attacco_casa * difesa_trasferta * media_camp_casa)
     lambda_trasferta = max(1.05, attacco_trasferta * difesa_casa * media_camp_trasferta)
 
@@ -203,12 +202,10 @@ def analizza_partita_precisione_pro(
     prob_under_25 = sum(matrice[i, j] for i in range(max_gol) for j in range(max_gol) if i + j <= 2) * 100
     prob_over_25 = 100 - prob_under_25
 
-    # Calcolo bilanciato e ancorato per il mercato Goal (Both Teams To Score)
     p_casa_segna = 1 - poisson.pmf(0, lambda_casa)
     p_trasferta_segna = 1 - poisson.pmf(0, lambda_trasferta)
     prob_goal_raw = p_casa_segna * p_trasferta_segna
     
-    # Ancoraggio dinamico con la media BTTS della lega per evitare distorsioni su campioni piccoli
     prob_goal_calibrata = (0.65 * prob_goal_raw + 0.35 * btts_base) * 100
     prob_no_goal = 100 - prob_goal_calibrata
 
