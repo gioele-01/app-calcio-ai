@@ -96,32 +96,38 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
 # ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
+from google.genai import types
+
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
-    Funzione Gemini con Web Search integrato per recuperare notizie e formazioni aggiornate ad OGGI.
+    Funzione Gemini veloce con ricerca sul web e thinking disabilitato per evitare blocchi/lag.
     """
     if not key:
         return "⚠️ Inserisci la chiave API di Google Gemini per abilitare l'analisi in tempo reale."
         
     prompt = f"""
-    Cerca sul web le notizie di oggi e delle ultime ore riguardanti la partita di calcio: '{match_name}'.
+    Cerca rapidamente sul web le ultime notizie di oggi per la partita: '{match_name}'.
+    Il nostro modello matematico prevede '{pronostico_math}' al {perc_math:.1f}%.
     
-    Il nostro modello matematico prevede l'esito '{pronostico_math}' al {perc_math:.1f}%.
-    
-    Fai una ricerca aggiornata in tempo reale e rispondi sinteticamente (massimo 3-4 frasi):
-    1. **Notizie e Infortuni dell'Ultimo Minuto:** Ci sono assenti chiave, squalificati o ballottaggi aggiornati ad oggi?
-    2. **Stato di Forma / Contesto:** Motivazioni di classifica recenti o turnover per le coppe.
-    3. **Verdetto:** Sulla base delle notizie reali di OGGI, il pronostico matematico trova riscontro o ci sono incognite?
+    Rispondi in modo sintetico (max 3 frasi):
+    1. Infortuni, squalifiche o formazioni ufficiali dell'ultimo minuto.
+    2. Motivazioni o stanchezza da coppe.
+    3. Verdetto: conferma o sconsiglia il pronostico?
     """
     
     try:
         client = genai.Client(api_key=key)
         
-        # Abilita lo strumento di ricerca Google in tempo reale
+        # Configuriamo Gemini per disabilitare il 'thinking' lento e usare la ricerca veloce
+        config = types.GenerateContentConfig(
+            tools=[types.Tool(google_search=types.GoogleSearch())],
+            thinking_config=types.ThinkingConfig(thinking_budget=0)  # Velocizza al massimo la risposta
+        )
+        
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
-            config={'tools': [{'google_search': {}}]}
+            config=config
         )
         
         if response and response.text:
@@ -130,16 +136,16 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
             return "⚠️ Nessuna notizia recente trovata per questo match."
             
     except Exception as e:
-        # Fallback senza ricerca se l'account non ha abilitato i search tool
+        # Fallback ultra-veloce senza search se la ricerca va in timeout
         try:
             client = genai.Client(api_key=key)
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=prompt
+                model='gemini-1.5-flash',
+                contents=f"Analizza brevemente il contesto della partita {match_name} con pronostico {pronostico_math} ({perc_math:.1f}%)."
             )
             return response.text
         except Exception as ex:
-            return f"⚠️ Errore di connessione a Gemini API: {str(ex)}"
+            return f"⚠️ Impossibile completare l'analisi: {str(ex)}"
 
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
