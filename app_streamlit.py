@@ -113,22 +113,23 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
         "contents": [{"parts": [{"text": prompt}]}]
     }
     
-    # Prova i modelli disponibili in ordine di preferenza
-    modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    # Modelli ufficiali e correnti supportati dalle Google Generative Language API
+    modelli = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.5-flash-lite"]
     
     for mod in modelli:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key.strip()}"
         try:
-            response = requests.post(url, json=payload, timeout=6)
+            response = requests.post(url, json=payload, timeout=8)
             if response.status_code == 200:
                 data = response.json()
-                return data['candidates'][0]['content']['parts'][0]['text']
+                if 'candidates' in data and len(data['candidates']) > 0:
+                    return data['candidates'][0]['content']['parts'][0]['text']
             elif response.status_code in [400, 403]:
-                return "⚠️ Chiave API Gemini non valida. Verificala su Google AI Studio."
-        except Exception:
+                return f"⚠️ Errore API ({response.status_code}): Controlla che la chiave Gemini sia attiva e corretta su Google AI Studio."
+        except Exception as e:
             continue
 
-    return "⚠️ Impossibile contattare i server Gemini. Riprova tra qualche istante."
+    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave sia inserita correttamente e attiva su Google AI Studio."
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
