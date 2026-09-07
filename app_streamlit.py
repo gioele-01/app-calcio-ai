@@ -5,13 +5,6 @@ from math import exp, factorial
 from datetime import datetime
 from google import genai
 
-
-def poisson_pmf(k, rate):
-    """Calculate a Poisson probability mass without the SciPy dependency."""
-    if k < 0 or rate < 0:
-        return 0.0
-    return exp(-rate) * rate ** k / factorial(k)
-
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
@@ -31,11 +24,23 @@ st.title("⚽ Football AI Match Analyzer Pro")
 st.caption("Algoritmo Avanzato: Dixon-Coles, Home/Away Weighting, Decay Model & Gemini Context AI")
 
 # ---------------------------------------------------------
-# MENU CONFIGURAZIONE IN-PAGE
+# RECUPERO AUTOMATICO CHIAVI API DAI SECRETS (O INPUT MANUALE)
 # ---------------------------------------------------------
-with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=True):
-    api_key = st.text_input("Chiave API (Football-Data.org)", type="password")
-    gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale per Context AI)", type="password")
+api_key_secret = st.secrets.get("FOOTBALL_API_KEY", "")
+gemini_key_secret = st.secrets.get("GEMINI_API_KEY", "")
+
+with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not bool(api_key_secret)):
+    if api_key_secret:
+        st.success("✅ Chiave Football-Data carica in automatico dai Secrets!")
+        api_key = api_key_secret
+    else:
+        api_key = st.text_input("Chiave API (Football-Data.org)", type="password")
+
+    if gemini_key_secret:
+        st.success("✅ Chiave Google Gemini carica in automatico dai Secrets!")
+        gemini_api_key = gemini_key_secret
+    else:
+        gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
     
     code_map = {
         "🇮🇹 Serie A": "SA",
@@ -63,9 +68,6 @@ with st.expander("🔍 **Filtri di Ricerca**", expanded=False):
 # INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
-    """
-    Analizza infortuni, turnover e notizie recenti tramite l'API ufficiale google-genai
-    """
     try:
         client = genai.Client(api_key=key)
         prompt = f"""
@@ -158,7 +160,7 @@ def analizza_partita_precisione_pro(
     matrice = np.zeros((max_gol, max_gol))
     for i in range(max_gol):
         for j in range(max_gol):
-            p_base = poisson_pmf(i, lambda_casa) * poisson_pmf(j, lambda_trasferta)
+            p_base = poisson.pmf(i, lambda_casa) * poisson.pmf(j, lambda_trasferta)
             correzione = tau_dixon_coles(i, j, lambda_casa, lambda_trasferta)
             matrice[i, j] = p_base * correzione
 
@@ -279,7 +281,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
             m3.metric("Goal", f"{p['goal']:.1f}%")
             m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
-            # PULSANTE GEMINI CONTEXT AI
             if gemini_api_key:
                 st.markdown("---")
                 if st.button(f"🧠 Analizza Contesto Notizie per {p['match']}", key=f"btn_{p['match']}"):
