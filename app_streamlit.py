@@ -51,12 +51,9 @@ with st.expander("🔍 **Filtri di Ricerca**", expanded=False):
         data_selezionata = st.date_input("Data partita", datetime.today())
 
 # ---------------------------------------------------------
-# LOGICA DATA SCIENCE: DIXON-COLES & EXPONENTIAL DECAY
+# LOGICA DATA SCIENCE CORRETTA (CON FALLBACK DI SICUREZZA)
 # ---------------------------------------------------------
 def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
-    """
-    Applica il fattore di correzione per i punteggi a basso numero di gol (0-0, 1-0, 0-1, 1-1)
-    """
     if x == 0 and y == 0:
         return 1 - (lambda_casa * lambda_trasferta * rho)
     elif x == 0 and y == 1:
@@ -71,37 +68,44 @@ def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.13):
 
 def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=True, n_partite=6, half_life=3):
     """
-    Calcola le medie gol specificità Casa/Trasferta con decadimento temporale esponenziale.
+    Estragga le ultime N partite. Se il campione filtrato per Casa/Trasferta e troppo piccolo,
+    utilizza il campione generale per evitare calcoli errati.
     """
     partite_filtrate = []
-    
+    partite_generali = []
+
     for m in reversed(matches_giocati):
         if m['status'] == 'FINISHED':
-            if is_home and m['homeTeam']['id'] == squadra_id:
-                partite_filtrate.append({
-                    'gf': m['score']['fullTime']['home'],
-                    'gs': m['score']['fullTime']['away']
-                })
-            elif not is_home and m['awayTeam']['id'] == squadra_id:
-                partite_filtrate.append({
-                    'gf': m['score']['fullTime']['away'],
-                    'gs': m['score']['fullTime']['home']
-                })
-            if len(partite_filtrate) == n_partite:
-                break
+            is_home_team = (m['homeTeam']['id'] == squadra_id)
+            is_away_team = (m['awayTeam']['id'] == squadra_id)
 
-    if not partite_filtrate:
-        return 1.2, 1.2, 0.5
+            if is_home_team or is_away_team:
+                gf = m['score']['fullTime']['home'] if is_home_team else m['score']['fullTime']['away']
+                gs = m['score']['fullTime']['away'] if is_home_team else m['score']['fullTime']['home']
+                
+                # Aggiunge alle generali
+                if len(partite_generali) < n_partite:
+                    partite_generali.append({'gf': gf, 'gs': gs})
 
-    # Pesi esponenziali (partite recenti = peso maggiore)
-    pesi = [np.exp(-i / half_life) for i in range(len(partite_filtrate))]
+                # Aggiunge alle specifiche Casa/Trasferta
+                if (is_home and is_home_team) or (not is_home and is_away_team):
+                    if len(partite_filtrate) < n_partite:
+                        partite_filtrate.append({'gf': gf, 'gs': gs})
+
+    # FALLBACK: Se ci sono meno di 2 partite nello specifico filtro, usa quelle generali
+    dataset_finale = partite_filtrate if len(partite_filtrate) >= 2 else partite_generali
+
+    # Se ancora non ci sono partite giocate (inizio stagione), usa le medie standard del campionato
+    if not dataset_finale:
+        return 1.45, 1.15, 0.5
+
+    pesi = [np.exp(-i / half_life) for i in range(len(dataset_finale))]
     somma_pesi = sum(pesi)
 
-    gf_pesati = sum(p['gf'] * w for p, w in zip(partite_filtrate, pesi)) / somma_pesi
-    gs_pesati = sum(p['gs'] * w for p, w in zip(partite_filtrate, pesi)) / somma_pesi
+    gf_pesati = sum(p['gf'] * w for p, w in zip(dataset_finale, pesi)) / somma_pesi
+    gs_pesati = sum(p['gs'] * w for p, w in zip(dataset_finale, pesi)) / somma_pesi
 
-    # Varianza delle prestazioni
-    gol_totali = [p['gf'] + p['gs'] for p in partite_filtrate]
+    gol_totali = [p['gf'] + p['gs'] for p in dataset_finale]
     varianza = float(np.var(gol_totali)) if len(gol_totali) > 1 else 0.5
 
     return gf_pesati, gs_pesati, varianza
@@ -112,10 +116,10 @@ def analizza_partita_precisione_pro(
     gf_trasferta, gs_trasferta, var_trasferta,
     media_camp_casa=1.45, media_camp_trasferta=1.15
 ):
-    gf_casa, gs_casa = max(gf_casa, 0.1), max(gs_casa, 0.1)
-    gf_trasferta, gs_trasferta = max(gf_trasferta, 0.1), max(gs_trasferta, 0.1)
+    # Protezione con limite minimo ragionevole (0.5 gol invece di 0.1)
+    gf_casa, gs_casa = max(gf_casa, 0.5), max(gs_casa, 0.5)
+    gf_trasferta, gs_trasferta = max(gf_trasferta, 0.5), max(gs_trasferta, 0.5)
 
-    # Indici di Attacco e Difesa ponderati per ruolo
     attacco_casa = gf_casa / media_camp_casa
     difesa_casa = gs_casa / media_camp_trasferta
     attacco_trasferta = gf_trasferta / media_camp_trasferta
@@ -150,9 +154,8 @@ def analizza_partita_precisione_pro(
     }
     esito_top = max(tutti_gli_esiti, key=tutti_gli_esiti.get)
 
-    # Correzione con indice di stabilità/varianza
     varianza_media = (var_casa + var_trasferta) / 2
-    fattore_stabilita = max(0.7, 1.0 - (varianza_media * 0.05))
+    fattore_stabilita = max(0.85, 1.0 - (varianza_media * 0.03))
     affidabilita_corretta = tutti_gli_esiti[esito_top] * fattore_stabilita
 
     return (
@@ -196,7 +199,6 @@ if st.button("🚀 AVVIA ANALISI AI"):
                     trasf_id = match['awayTeam']['id']
                     nome_match = f"{casa} vs {trasferta}"
 
-                    # Stats pesate Casa/Trasferta con Decay
                     gf_c, gs_c, var_c = ottieni_stats_casa_trasferta_pesate(all_matches, casa_id, is_home=True, n_partite=6)
                     gf_t, gs_t, var_t = ottieni_stats_casa_trasferta_pesate(all_matches, trasf_id, is_home=False, n_partite=6)
 
@@ -234,7 +236,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite con modello di precisione")
 
-    # Lista Schede Partita
     for p in partite:
         with st.expander(f"⚽ **{p['match']}**\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
             st.write("**Esito Finale (1X2)**")
@@ -254,7 +255,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     st.markdown("---")
 
-    # Generatore Multipla Automatico
     st.subheader("🎟️ Generatore Schedina Multipla")
     num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=6, value=3)
 
@@ -273,7 +273,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     st.markdown("---")
 
-    # Dettaglio Punteggi Esatti
     st.subheader("📊 Matrice Punteggio Esatto")
     match_scelto = st.selectbox("Seleziona Partita:", list(dettagli.keys()))
 
@@ -297,26 +296,3 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
 elif 'partite' in st.session_state:
     st.warning("Nessuna partita trovata con i filtri correnti.")
-    # ---------------------------------------------------------
-# GENERATORE AUTOMATICO DI SCHEDINA MULTIPLA
-# ---------------------------------------------------------
-if 'partite' in st.session_state and st.session_state['partite']:
-    st.markdown("---")
-    st.subheader("🎟️ Generatore Schedina Multipla")
-    
-    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=6, value=3)
-    
-    if st.button("🎲 Genera Schedina Top Pick"):
-        # Ordina le partite per affidabilità decrescente
-        partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
-        
-        top_eventi = partite_ordinate[:num_eventi]
-        
-        prob_combinata = 1.0
-        st.markdown("### 📜 La tua Schedina Consigliata:")
-        
-        for idx, ev in enumerate(top_eventi, 1):
-            st.write(f"**{idx}. {ev['match']}** ({ev['data']}) ➔ **{ev['top_pick']}** (Confidenza: {ev['top_perc']:.1f}%)")
-            prob_combinata *= (ev['top_perc'] / 100)
-            
-        st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {prob_combinata * 100:.1f}%")
