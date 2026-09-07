@@ -97,24 +97,49 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
 # INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
+    """
+    Funzione Gemini con Web Search integrato per recuperare notizie e formazioni aggiornate ad OGGI.
+    """
+    if not key:
+        return "⚠️ Inserisci la chiave API di Google Gemini per abilitare l'analisi in tempo reale."
+        
+    prompt = f"""
+    Cerca sul web le notizie di oggi e delle ultime ore riguardanti la partita di calcio: '{match_name}'.
+    
+    Il nostro modello matematico prevede l'esito '{pronostico_math}' al {perc_math:.1f}%.
+    
+    Fai una ricerca aggiornata in tempo reale e rispondi sinteticamente (massimo 3-4 frasi):
+    1. **Notizie e Infortuni dell'Ultimo Minuto:** Ci sono assenti chiave, squalificati o ballottaggi aggiornati ad oggi?
+    2. **Stato di Forma / Contesto:** Motivazioni di classifica recenti o turnover per le coppe.
+    3. **Verdetto:** Sulla base delle notizie reali di OGGI, il pronostico matematico trova riscontro o ci sono incognite?
+    """
+    
     try:
         client = genai.Client(api_key=key)
-        prompt = f"""
-        Sei un analista tattico di calcio. 
-        Il nostro modello matematico-statistico (Dixon-Coles / Poisson) prevede per la partita '{match_name}' l'esito '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
         
-        Analizza brevemente (massimo 3-4 frasi sintetiche) il contesto reale di questa partita:
-        - Eventuali assenze pesanti, infortuni o squalifiche dell'ultimo minuto.
-        - Motivazioni di classifica o stanchezza da impegni ravvicinati (turnover).
-        - Concludi indicando se il contesto conferma o sconsiglia la giocata matematica.
-        """
+        # Abilita lo strumento di ricerca Google in tempo reale
         response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=prompt
+            contents=prompt,
+            config={'tools': [{'google_search': {}}]}
         )
-        return response.text
+        
+        if response and response.text:
+            return response.text
+        else:
+            return "⚠️ Nessuna notizia recente trovata per questo match."
+            
     except Exception as e:
-        return f"⚠️ Impossibile recuperare l'analisi Gemini: {str(e)}"
+        # Fallback senza ricerca se l'account non ha abilitato i search tool
+        try:
+            client = genai.Client(api_key=key)
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=prompt
+            )
+            return response.text
+        except Exception as ex:
+            return f"⚠️ Errore di connessione a Gemini API: {str(ex)}"
 
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
