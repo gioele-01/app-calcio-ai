@@ -1,10 +1,9 @@
-import streamlit as st  # type: ignore[import-not-found]
-import requests
+import streamlit as st  # type: ignore
+import requests  # type: ignore[import-not-found]
 import numpy as np  # type: ignore[import-not-found]
+import pandas as pd  # type: ignore[import-not-found]
 from scipy.stats import poisson  # type: ignore[import-not-found]
-from math import exp, factorial
 from datetime import datetime
-from google import genai
 
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
@@ -45,27 +44,64 @@ with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(rapid_k
         gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
 
 # ---------------------------------------------------------
-# MAPPATURA CAMPIONATI (AMPLIATA)
+# FETCH DINAMICO DI TUTTI I CAMPIONATI DISPONIBILI (CACHE 24H)
+# ---------------------------------------------------------
+@st.cache_data(ttl=86400)
+def scarica_tutti_i_campionati_disponibili(key):
+    if not key:
+        return {}
+    url = "https://api-football-v1.p.rapidapi.com/v3/leagues"
+    headers = {
+        "X-RapidAPI-Key": key,
+        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+    }
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            leagues_data = res.json().get("response", [])
+            dict_campionati = {}
+            for item in leagues_data:
+                league_info = item['league']
+                country_info = item['country']
+                nome_completo = f"{country_info['name']} - {league_info['name']}"
+                
+                dict_campionati[nome_completo] = {
+                    "id": league_info['id'],
+                    "type": league_info['type'],
+                    "home_avg": 1.45,
+                    "away_avg": 1.15,
+                    "btts_base": 0.52
+                }
+            # Ordina i campionati alfabeticamente per nazione
+            return dict(sorted(dict_campionati.items()))
+    except Exception:
+        pass
+    return {}
+
+# ---------------------------------------------------------
+# FILTRI DI RICERCA & CAMPIONATI
 # ---------------------------------------------------------
 with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
-    code_map = {
-        "🇮🇹 Serie A": {"id": 135, "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
-        "🇮🇹 Serie B": {"id": 136, "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"id": 39, "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": {"id": 40, "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
-        "🇪🇸 La Liga": {"id": 140, "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
-        "🇪🇸 La Liga 2": {"id": 141, "home_avg": 1.25, "away_avg": 0.95, "btts_base": 0.45},
-        "🇩🇪 Bundesliga": {"id": 78, "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
-        "🇫🇷 Ligue 1": {"id": 61, "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
-        "🇳🇱 Eredivisie": {"id": 88, "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
-        "🇵🇹 Primeira Liga": {"id": 94, "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
-        "🇧🇷 Serie A Brasiliana": {"id": 71, "home_avg": 1.48, "away_avg": 1.05, "btts_base": 0.48},
-        "🇪🇺 UEFA Champions League": {"id": 2, "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
-        "🇪🇺 UEFA Europa League": {"id": 3, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55}
+    # Fallback manuale dei campionati principali nel caso l'API sia senza chiave
+    code_map_default = {
+        "Italy - Serie A": {"id": 135, "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
+        "Italy - Serie B": {"id": 136, "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
+        "England - Premier League": {"id": 39, "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
+        "Spain - La Liga": {"id": 140, "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
+        "Germany - Bundesliga": {"id": 78, "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
+        "France - Ligue 1": {"id": 61, "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
+        "World - UEFA Champions League": {"id": 2, "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57}
     }
-    
-    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Coppa", list(code_map.keys()))
-    comp_info = code_map[campionato_scelto]
+
+    if api_key:
+        campionati_disponibili = scarica_tutti_i_campionati_disponibili(api_key)
+        if not campionati_disponibili:
+            campionati_disponibili = code_map_default
+    else:
+        campionati_disponibili = code_map_default
+
+    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Coppa", list(campionati_disponibili.keys()))
+    comp_info = campionati_disponibili[campionato_scelto]
     league_id = comp_info["id"]
 
     col_f1, col_f2 = st.columns(2)
@@ -97,7 +133,7 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# FETCHING CON CACHE DI 1 ORA (PER RISPARMIARE REQUESTS)
+# FETCHING PARTITE CON CACHE DI 1 ORA
 # ---------------------------------------------------------
 @st.cache_data(ttl=3600)
 def scarica_partite_api_football(league_id, key):
@@ -107,7 +143,6 @@ def scarica_partite_api_football(league_id, key):
         "X-RapidAPI-Key": key,
         "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
     }
-    
     try:
         res = requests.get(url, headers=headers, timeout=10)
         if res.status_code == 200:
@@ -291,7 +326,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
 
             for m in all_matches:
                 status = m['fixture']['status']['short']
-                if status in ['NS', 'TBD']:  # Not Started
+                if status in ['NS', 'TBD']:
                     data_partita = m['fixture']['date'][:10]
 
                     if filtro_data == "Solo Oggi" and data_partita != oggi_str:
