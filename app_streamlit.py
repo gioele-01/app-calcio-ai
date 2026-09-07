@@ -4,12 +4,6 @@ import numpy as np  # type: ignore[import-not-found]
 from math import exp, factorial
 from datetime import datetime
 from google import genai
-
-
-def poisson_pmf(k, rate):
-    """Return the Poisson probability mass for k events."""
-    return exp(-rate) * (rate ** k) / factorial(k)
-
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
@@ -22,6 +16,7 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 19px !important; }
     [data-testid="stMetricLabel"] { font-size: 11px !important; }
     div[data-testid="stExpander"] { border-radius: 10px; border: 1px solid #374151; }
+    .stSelectbox label, .stSlider label { font-weight: bold; font-size: 14px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -62,12 +57,44 @@ with st.expander("⚙️ **Imposta API e Seleziona Campionato**", expanded=not b
     campionato_scelto = st.selectbox("Campionato / Coppa", list(code_map.keys()))
     comp_code = code_map[campionato_scelto]
 
-with st.expander("🔍 **Filtri di Ricerca**", expanded=False):
-    min_confidence = st.slider("Affidabilità minima (%)", min_value=50, max_value=95, value=65, step=5)
-    filtro_data = st.radio("Filtro Data", ["Tutte le prossime", "Solo Oggi", "Seleziona Data"])
+# ---------------------------------------------------------
+# FILTRI DI RICERCA OTTIMIZZATI PER MOBILE
+# ---------------------------------------------------------
+with st.expander("🔍 **Filtri di Ricerca & Mercati**", expanded=True):
+    col_f1, col_f2 = st.columns(2)
+    
+    with col_f1:
+        filtro_data = st.selectbox(
+            "📅 Selezione Data", 
+            ["Tutte le prossime", "Solo Oggi", "Seleziona Data Specifica"]
+        )
+    
+    with col_f2:
+        mercato_preferito = st.selectbox(
+            "🎯 Mercato d'Interesse",
+            ["Tutti i mercati", "Solo 1X2", "Solo Over / Under", "Solo Goal / No Goal"]
+        )
+
     data_selezionata = None
-    if filtro_data == "Seleziona Data":
-        data_selezionata = st.date_input("Data partita", datetime.today())
+    if filtro_data == "Seleziona Data Specifica":
+        data_selezionata = st.date_input("Scegli data partita", datetime.today())
+
+    st.markdown("---")
+    
+    min_confidence = st.slider(
+        "⚡ Affidabilità minima (%)", 
+        min_value=50, 
+        max_value=90, 
+        value=60, 
+        step=5
+    )
+    
+    if min_confidence >= 75:
+        st.caption("🛡️ **Profilo Prudente:** Verranno mostrati solo i pronostici ad altissima confidenza.")
+    elif min_confidence >= 60:
+        st.caption("⚖️ **Profilo Bilanciato:** Ottimo equilibrio tra frequenza di match e stabilità.")
+    else:
+        st.caption("🔥 **Profilo Aggressivo / Azzardo:** Include partite con esiti più aperti e quote potenzialmente più alte.")
 
 # ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI
@@ -165,7 +192,11 @@ def analizza_partita_precisione_pro(
     matrice = np.zeros((max_gol, max_gol))
     for i in range(max_gol):
         for j in range(max_gol):
-            p_base = poisson_pmf(i, lambda_casa) * poisson_pmf(j, lambda_trasferta)
+            # PMF di Poisson calcolata senza dipendere da scipy.
+            p_base = (
+                exp(-lambda_casa) * lambda_casa ** i / factorial(i)
+                * exp(-lambda_trasferta) * lambda_trasferta ** j / factorial(j)
+            )
             correzione = tau_dixon_coles(i, j, lambda_casa, lambda_trasferta)
             matrice[i, j] = p_base * correzione
 
@@ -185,11 +216,22 @@ def analizza_partita_precisione_pro(
         "Over 2.5": prob_over_25, "Under 2.5": prob_under_25,
         "Goal": prob_goal, "No Goal": prob_no_goal
     }
-    esito_top = max(tutti_gli_esiti, key=tutti_gli_esiti.get)
+
+    # Filtro opzionale per tipologia di mercato
+    if mercato_preferito == "Solo 1X2":
+        esiti_filtrati = {"1": prob_1, "X": prob_X, "2": prob_2}
+    elif mercato_preferito == "Solo Over / Under":
+        esiti_filtrati = {"Over 2.5": prob_over_25, "Under 2.5": prob_under_25}
+    elif mercato_preferito == "Solo Goal / No Goal":
+        esiti_filtrati = {"Goal": prob_goal, "No Goal": prob_no_goal}
+    else:
+        esiti_filtrati = tutti_gli_esiti
+
+    esito_top = max(esiti_filtrati, key=esiti_filtrati.get)
 
     varianza_media = (var_casa + var_trasferta) / 2
     fattore_stabilita = max(0.85, 1.0 - (varianza_media * 0.03))
-    affidabilita_corretta = tutti_gli_esiti[esito_top] * fattore_stabilita
+    affidabilita_corretta = esiti_filtrati[esito_top] * fattore_stabilita
 
     return (
         esito_top, affidabilita_corretta,
@@ -223,7 +265,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
 
                     if filtro_data == "Solo Oggi" and data_partita != oggi_str:
                         continue
-                    elif filtro_data == "Seleziona Data" and data_partita != data_selezionata.strftime('%Y-%m-%d'):
+                    elif filtro_data == "Seleziona Data Specifica" and data_partita != data_selezionata.strftime('%Y-%m-%d'):
                         continue
 
                     casa = match['homeTeam']['name']
