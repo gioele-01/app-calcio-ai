@@ -23,46 +23,50 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Calibrato: Dixon-Coles, Dynamic Goal Markets & Gemini Context AI")
+st.caption("Algoritmo Calibrato: API-Football, Dixon-Coles & Gemini Context AI")
 
 # ---------------------------------------------------------
-# RECUPERO AUTOMATICO CHIAVI API DAI SECRETS (O INPUT MANUALE)
+# RECUPERO CHIAVI API DAI SECRETS O INPUT
 # ---------------------------------------------------------
-api_key_secret = st.secrets.get("FOOTBALL_API_KEY", "")
+rapid_key_secret = st.secrets.get("RAPIDAPI_KEY", "")
 gemini_key_secret = st.secrets.get("GEMINI_API_KEY", "")
 
-with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(api_key_secret)):
-    if api_key_secret:
-        st.success("✅ Chiave Football-Data caricata in automatico dai Secrets!")
-        api_key = api_key_secret
+with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(rapid_key_secret)):
+    if rapid_key_secret:
+        st.success("✅ Chiave RapidAPI-Football caricata dai Secrets!")
+        api_key = rapid_key_secret
     else:
-        api_key = st.text_input("Chiave API (Football-Data.org)", type="password")
+        api_key = st.text_input("Chiave API (X-RapidAPI-Key)", type="password")
 
     if gemini_key_secret:
-        st.success("✅ Chiave Google Gemini caricata in automatico dai Secrets!")
+        st.success("✅ Chiave Google Gemini caricata dai Secrets!")
         gemini_api_key = gemini_key_secret
     else:
         gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
 
 # ---------------------------------------------------------
-# FILTRI DI RICERCA & SELEZIONE CAMPIONATO
+# MAPPATURA CAMPIONATI (AMPLIATA)
 # ---------------------------------------------------------
 with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     code_map = {
-        "🇮🇹 Serie A": {"code": "SA", "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"code": "PL", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
-        "🇪🇸 La Liga": {"code": "PD", "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
-        "🇩🇪 Bundesliga": {"code": "BL1", "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
-        "🇫🇷 Ligue 1": {"code": "FL1", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
-        "🇳🇱 Eredivisie": {"code": "DED", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
-        "🇵🇹 Primeira Liga": {"code": "PPL", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
-        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": {"code": "ELC", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
-        "🇪🇺 Champions League": {"code": "CL", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57}
+        "🇮🇹 Serie A": {"id": 135, "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
+        "🇮🇹 Serie B": {"id": 136, "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League": {"id": 39, "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Championship": {"id": 40, "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
+        "🇪🇸 La Liga": {"id": 140, "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
+        "🇪🇸 La Liga 2": {"id": 141, "home_avg": 1.25, "away_avg": 0.95, "btts_base": 0.45},
+        "🇩🇪 Bundesliga": {"id": 78, "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
+        "🇫🇷 Ligue 1": {"id": 61, "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
+        "🇳🇱 Eredivisie": {"id": 88, "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
+        "🇵🇹 Primeira Liga": {"id": 94, "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+        "🇧🇷 Serie A Brasiliana": {"id": 71, "home_avg": 1.48, "away_avg": 1.05, "btts_base": 0.48},
+        "🇪🇺 UEFA Champions League": {"id": 2, "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
+        "🇪🇺 UEFA Europa League": {"id": 3, "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55}
     }
     
     campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Coppa", list(code_map.keys()))
     comp_info = code_map[campionato_scelto]
-    comp_code = comp_info["code"]
+    league_id = comp_info["id"]
 
     col_f1, col_f2 = st.columns(2)
     
@@ -93,6 +97,26 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
+# FETCHING CON CACHE DI 1 ORA (PER RISPARMIARE REQUESTS)
+# ---------------------------------------------------------
+@st.cache_data(ttl=3600)
+def scarica_partite_api_football(league_id, key):
+    anno_corrente = datetime.now().year
+    url = f"https://api-football-v1.p.rapidapi.com/v3/fixtures?league={league_id}&season={anno_corrente}"
+    headers = {
+        "X-RapidAPI-Key": key,
+        "X-RapidAPI-Host": "api-football-v1.p.rapidapi.com"
+    }
+    
+    try:
+        res = requests.get(url, headers=headers, timeout=10)
+        if res.status_code == 200:
+            return res.json().get("response", [])
+    except Exception:
+        pass
+    return []
+
+# ---------------------------------------------------------
 # INTEGRATORE GEMINI CONTEXT AI (REST FAST CALL)
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
@@ -109,12 +133,8 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     3. Concludi indicando se il contesto conferma o sconsiglia il pronostico.
     """
     
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}]
-    }
-    
-    # Modelli ufficiali e correnti supportati dalle Google Generative Language API
-    modelli = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-2.5-flash-lite"]
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
     
     for mod in modelli:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key.strip()}"
@@ -124,12 +144,11 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
                 data = response.json()
                 if 'candidates' in data and len(data['candidates']) > 0:
                     return data['candidates'][0]['content']['parts'][0]['text']
-            elif response.status_code in [400, 403]:
-                return f"⚠️ Errore API ({response.status_code}): Controlla che la chiave Gemini sia attiva e corretta su Google AI Studio."
-        except Exception as e:
+        except Exception:
             continue
 
-    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave sia inserita correttamente e attiva su Google AI Studio."
+    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave sia attiva su Google AI Studio."
+
 # ---------------------------------------------------------
 # LOGICA DATA SCIENCE CALIBRATA
 # ---------------------------------------------------------
@@ -146,25 +165,29 @@ def tau_dixon_coles(x, y, lambda_casa, lambda_trasferta, rho=-0.05):
         return 1.0
 
 
-def ottieni_stats_casa_trasferta_pesate(matches_giocati, squadra_id, is_home=True, n_partite=6, half_life=3):
+def ottieni_stats_casa_trasferta_pesate(all_matches, squadra_id, is_home=True, n_partite=6, half_life=3):
     partite_filtrate = []
     partite_generali = []
 
-    for m in reversed(matches_giocati):
-        if m['status'] == 'FINISHED':
-            is_home_team = (m['homeTeam']['id'] == squadra_id)
-            is_away_team = (m['awayTeam']['id'] == squadra_id)
+    for m in reversed(all_matches):
+        status = m['fixture']['status']['short']
+        if status in ['FT', 'AET', 'PEN']:
+            h_id = m['teams']['home']['id']
+            a_id = m['teams']['away']['id']
+            is_home_team = (h_id == squadra_id)
+            is_away_team = (a_id == squadra_id)
 
             if is_home_team or is_away_team:
-                gf = m['score']['fullTime']['home'] if is_home_team else m['score']['fullTime']['away']
-                gs = m['score']['fullTime']['away'] if is_home_team else m['score']['fullTime']['home']
+                gf = m['goals']['home'] if is_home_team else m['goals']['away']
+                gs = m['goals']['away'] if is_home_team else m['goals']['home']
                 
-                if len(partite_generali) < n_partite:
-                    partite_generali.append({'gf': gf, 'gs': gs})
+                if gf is not None and gs is not None:
+                    if len(partite_generali) < n_partite:
+                        partite_generali.append({'gf': gf, 'gs': gs})
 
-                if (is_home and is_home_team) or (not is_home and is_away_team):
-                    if len(partite_filtrate) < n_partite:
-                        partite_filtrate.append({'gf': gf, 'gs': gs})
+                    if (is_home and is_home_team) or (not is_home and is_away_team):
+                        if len(partite_filtrate) < n_partite:
+                            partite_filtrate.append({'gf': gf, 'gs': gs})
 
     dataset_finale = partite_filtrate if len(partite_filtrate) >= 2 else partite_generali
 
@@ -256,33 +279,30 @@ def analizza_partita_precisione_pro(
 # ---------------------------------------------------------
 if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
-        st.error("Inserisci la chiave API di Football-Data.org per continuare.")
+        st.error("Inserisci la chiave RapidAPI-Football per continuare.")
     else:
-        headers = {"X-Auth-Token": api_key}
-        BASE_URL = "https://api.football-data.org/v4/"
+        with st.spinner("Scaricamento dati e calcolo matrici probabilità..."):
+            all_matches = scarica_partite_api_football(league_id, api_key)
 
-        with st.spinner("Calcolo metriche pesate e matrici probabilità..."):
-            res_matches = requests.get(f"{BASE_URL}competitions/{comp_code}/matches", headers=headers)
-
-        if res_matches.status_code == 200:
-            all_matches = res_matches.json().get("matches", [])
+        if all_matches:
             partite_analizzate = []
             dettagli_matrici = {}
             oggi_str = datetime.today().strftime('%Y-%m-%d')
 
-            for match in all_matches:
-                if match['status'] in ['SCHEDULED', 'TIMED']:
-                    data_partita = match['utcDate'][:10]
+            for m in all_matches:
+                status = m['fixture']['status']['short']
+                if status in ['NS', 'TBD']:  # Not Started
+                    data_partita = m['fixture']['date'][:10]
 
                     if filtro_data == "Solo Oggi" and data_partita != oggi_str:
                         continue
                     elif filtro_data == "Seleziona Data Specifica" and data_partita != data_selezionata.strftime('%Y-%m-%d'):
                         continue
 
-                    casa = match['homeTeam']['name']
-                    trasferta = match['awayTeam']['name']
-                    casa_id = match['homeTeam']['id']
-                    trasf_id = match['awayTeam']['id']
+                    casa = m['teams']['home']['name']
+                    trasferta = m['teams']['away']['name']
+                    casa_id = m['teams']['home']['id']
+                    trasf_id = m['teams']['away']['id']
                     nome_match = f"{casa} vs {trasferta}"
 
                     gf_c, gs_c, var_c = ottieni_stats_casa_trasferta_pesate(
@@ -319,10 +339,10 @@ if st.button("🚀 AVVIA ANALISI AI"):
             st.session_state['dettagli_matrici'] = dettagli_matrici
             st.session_state['campionato_corrente'] = campionato_scelto
         else:
-            st.error("Errore di connessione API. Verificare la chiave inserita o i permessi del piano.")
+            st.error("Errore nel recupero dati API-Football. Verifica la chiave o la disponibilità delle partite.")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE (RISULTATI & GEMINI)
+# INTERFACCIA UTENTE
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
@@ -350,7 +370,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
             m3.metric("Goal", f"{p['goal']:.1f}%")
             m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
-            # SEZIONE REPORT GEMINI SEMPRE VISIBILE
             st.markdown("---")
             if match_key in st.session_state:
                 st.info(st.session_state[match_key])
