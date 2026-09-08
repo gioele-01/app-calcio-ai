@@ -23,7 +23,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Calibrato: The Odds API, Dixon-Coles, Gemini AI & Visual Analytics")
+st.caption("Algoritmo Calibrato: The Odds API (1X2, Over/Under, BTTS), Dixon-Coles & Gemini AI")
 
 # ---------------------------------------------------------
 # RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
@@ -123,19 +123,20 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
         "⚡ Affidabilità minima (%)", 
         min_value=50, 
         max_value=90, 
-        value=60, 
+        value=55, 
         step=5
     )
 
 # ---------------------------------------------------------
-# FETCHING PARTITE DA THE ODDS API (CACHE 30 MIN)
+# FETCHING PARTITE DA THE ODDS API (RICHIEDE ANCHE BTTS)
 # ---------------------------------------------------------
 @st.cache_data(ttl=1800)
 def scarica_partite_the_odds_api(sport_key, key):
     if not key:
         return None, "⚠️ Inserisci la tua chiave API di The Odds API."
 
-    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={key.strip()}&regions=eu&markets=h2h,totals&dateFormat=iso"
+    # Aggiunto btts nei mercati richiesti dall'API
+    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={key.strip()}&regions=eu&markets=h2h,totals,btts&dateFormat=iso"
     
     try:
         res = requests.get(url, timeout=10)
@@ -186,7 +187,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta."
 
 # ---------------------------------------------------------
-# LOGICA DI CALCOLO PERFETTAMENTE RICALIBRATA CON LE QUOTE
+# LOGICA DI CALCOLO UNICA E DIFFERENZIATA
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info):
     casa = match['home_team']
@@ -194,12 +195,12 @@ def elab_match_odds(match, comp_info):
     
     prob_1, prob_X, prob_2 = 40.0, 30.0, 30.0
     prob_over, prob_under = 50.0, 50.0
-    prob_goal, prob_no_goal = comp_info['btts_base'] * 100, (1 - comp_info['btts_base']) * 100
+    prob_goal, prob_no_goal = None, None
 
     if match.get('bookmakers'):
         bm = match['bookmakers'][0]
         for m in bm.get('markets', []):
-            # 1. Esito Finale 1X2
+            # 1. Quota 1X2
             if m['key'] == 'h2h':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
                 q1 = outcomes.get(casa, 2.5)
@@ -211,7 +212,7 @@ def elab_match_odds(match, comp_info):
                 prob_X = (1/qX / inv_tot) * 100
                 prob_2 = (1/q2 / inv_tot) * 100
 
-            # 2. Mercato Over / Under 2.5
+            # 2. Quota Over / Under 2.5
             elif m['key'] == 'totals':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
                 q_over = outcomes.get('Over', 1.9)
@@ -221,7 +222,7 @@ def elab_match_odds(match, comp_info):
                 prob_over = (1/q_over / inv_tot) * 100
                 prob_under = (1/q_under / inv_tot) * 100
 
-            # 3. Mercato Goal / No Goal (se fornito direttamente da The Odds API)
+            # 3. Quota Goal / No Goal
             elif m['key'] == 'btts':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
                 q_yes = outcomes.get('Yes', 1.8)
@@ -231,16 +232,12 @@ def elab_match_odds(match, comp_info):
                 prob_goal = (1/q_yes / inv_tot) * 100
                 prob_no_goal = (1/q_no / inv_tot) * 100
 
-    # Stima dinamica del Goal/No Goal derivata da Over 2.5 se il mercato BTTS non è presente
-    if 'btts' not in [m['key'] for bm in match.get('bookmakers', []) for m in bm.get('markets', [])]:
-        # Correlazione statistica reale: Se l'Over 2.5 ha alta probabilità, anche il Goal sale di conseguenza
-        prob_goal = min(85.0, max(35.0, prob_over * 0.82 + 22.0))
-        prob_no_goal = 100.0 - prob_goal
-
-    # Matrice Poisson 4x4 bilanciata sull'aspettativa reale di gol
-    gol_attesi = 1.8 + (prob_over / 100) * 1.5
-    lambda_c = max(0.6, gol_attesi * (prob_1 / (prob_1 + prob_2 + 1e-5)))
-    lambda_t = max(0.5, gol_attesi * (prob_2 / (prob_1 + prob_2 + 1e-5)))
+    # Calcolo Poisson e stima Goal se non fornita direttamente
+    gol_attesi_totali = 1.7 + (prob_over / 100) * 1.5
+    forza_relativa = prob_1 / (prob_1 + prob_2 + 1e-5)
+    
+    lambda_c = max(0.6, gol_attesi_totali * forza_relativa)
+    lambda_t = max(0.5, gol_attesi_totali * (1.0 - forza_relativa))
 
     matrice_raw = np.zeros((4, 4))
     for i in range(4):
@@ -248,6 +245,11 @@ def elab_match_odds(match, comp_info):
             matrice_raw[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
             
     matrice = (matrice_raw / np.sum(matrice_raw)) * 100
+
+    # Se la quota BTTS non era presente dall'API, usiamo la simulazione Poisson calibrata
+    if prob_goal is None:
+        prob_goal = float(sum(matrice[i, j] for i in range(1, 4) for j in range(1, 4)))
+        prob_no_goal = 100.0 - prob_goal
 
     tutti_gli_esiti = {
         "1": prob_1, "X": prob_X, "2": prob_2,
@@ -268,6 +270,7 @@ def elab_match_odds(match, comp_info):
     top_perc = esiti[top_pick]
 
     return top_pick, top_perc, prob_1, prob_X, prob_2, prob_over, prob_under, prob_goal, prob_no_goal, matrice
+
 # ---------------------------------------------------------
 # EXECUTION ENGINE
 # ---------------------------------------------------------
@@ -275,7 +278,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
         st.error("Inserisci la chiave API di The Odds API per continuare.")
     else:
-        with st.spinner("Scaricamento palinsesti e calcolo probabilità dinamiche..."):
+        with st.spinner("Scaricamento palinsesti e calcolo probabilità avanzate..."):
             all_matches, error_msg = scarica_partite_the_odds_api(sport_key, api_key)
 
         if all_matches:
@@ -353,7 +356,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
             fig_bar.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10), yaxis=dict(range=[0, 100]))
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            st.write("**Mercati Gol Dinamici**")
+            st.write("**Mercati Gol**")
             m1, m2 = st.columns(2)
             m1.metric("Over 2.5", f"{p['over']:.1f}%")
             m2.metric("Under 2.5", f"{p['under']:.1f}%")
@@ -378,7 +381,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         st.rerun()
 
     # ---------------------------------------------------------
-    # GENERATORE SCHEDINA & DOWNLOAD TESTO / TELEGRAM
+    # GENERATORE SCHEDINA MULTIPLA DIVERSIFICATA
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎟️ Generatore Schedina Multipla")
