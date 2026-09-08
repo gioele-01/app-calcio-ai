@@ -1,6 +1,7 @@
 import streamlit as st  # type: ignore[import-not-found]
 import requests
 import json
+import re
 import numpy as np  # type: ignore[import-not-found]
 import plotly.express as px  # type: ignore[import-not-found]
 import plotly.graph_objects as go  # type: ignore[import-not-found]
@@ -152,11 +153,11 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI TACTICAL CORRECTOR (ESTRAE SHIFT IN FORMATO JSON)
+# GEMINI TACTICAL CORRECTOR (CON ESTRAZIONE JSON INFALLIBILE)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
-        return None, "⚠️ Nessuna chiave GEMINI_API_KEY nei Secrets."
+        return None, "⚠️ Nessuna chiave GEMINI_API_KEY trovata nei Secrets."
 
     key_clean = key.strip().replace('"', '').replace("'", "")
     
@@ -168,33 +169,46 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     Analizza infortuni dei titolari, turnover, stanchezza, stato di forma e motivazioni di classifica.
     Calcola un piccolo aggiustamento di probabilità (shift%) per la squadra di casa (da -8.0 a +8.0) e per la squadra in trasferta (da -8.0 a +8.0).
 
-    Rispondi TASSATIVAMENTE in formato JSON puro SENZA blocchi di codice markdown, usando questa struttura esatta:
+    Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
     {{
         "home_shift": 2.5,
         "away_shift": -1.5,
-        "analisi_sintetica": "La tua analisi breve in 3 frasi..."
+        "analisi_sintetica": "Inserisci qui l'analisi sintetica in 3 frasi..."
     }}
     """
     
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "response_mime_type": "application/json"
+        }
+    }
+    
     modelli = ["gemini-2.5-flash", "gemini-2.5-pro"]
+    errori_log = []
     
     for mod in modelli:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
         try:
-            response = requests.post(url, json=payload, timeout=10)
+            response = requests.post(url, json=payload, timeout=12)
             if response.status_code == 200:
                 data = response.json()
                 if 'candidates' in data and len(data['candidates']) > 0:
                     text_res = data['candidates'][0]['content']['parts'][0]['text']
-                    # Pulizia da ev. markdown ```json
-                    clean_json_str = text_res.replace("```json", "").replace("```", "").strip()
-                    parsed = json.loads(clean_json_str)
-                    return parsed, None
+                    
+                    json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
+                    if json_match:
+                        parsed = json.loads(json_match.group(0))
+                        return parsed, None
+                    else:
+                        parsed = json.loads(text_res)
+                        return parsed, None
+            else:
+                errori_log.append(f"{mod} ({response.status_code}): {response.text[:100]}")
         except Exception as e:
-            continue
+            errori_log.append(f"{mod} err: {str(e)}")
 
-    return None, "⚠️ Impossibile completare l'analisi con Gemini."
+    return None, f"⚠️ Errore Gemini: {' | '.join(errori_log)}"
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
@@ -229,12 +243,11 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
                 prob_over = (1/q_over / inv_tot) * 100
                 prob_under = (1/q_under / inv_tot) * 100
 
-    # 🧠 APPLICAZIONE SHIFT TATTICO GEMINI SU 1X2
+    # Applicazione dello shift tattico calcolato da Gemini
     p1_mod = max(5.0, min(85.0, prob_1 + home_shift))
     p2_mod = max(5.0, min(85.0, prob_2 + away_shift))
     px_mod = max(5.0, 100.0 - (p1_mod + p2_mod))
     
-    # Rinormalizzazione a 100%
     tot_mod = p1_mod + px_mod + p2_mod
     p1_final = (p1_mod / tot_mod) * 100
     px_final = (px_mod / tot_mod) * 100
@@ -349,7 +362,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     for idx, p in enumerate(partite):
         match_key = f"gemini_report_{p['match']}"
-        shift_key = f"shift_applied_{p['match']}"
         
         with st.expander(f"⚽ **{p['match']}** ({p['data']})\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
             st.write("**Esito Finale (1X2)**")
@@ -385,8 +397,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
                 st.info(st.session_state[match_key])
                 if st.button("🔄 Ripristina Statistica Base", key=f"reload_{idx}_{p['match']}"):
                     del st.session_state[match_key]
-                    if shift_key in st.session_state:
-                        del st.session_state[shift_key]
                     st.rerun()
             else:
                 if st.button("🧠 Studio Tattico Gemini & Correzione %", key=f"btn_{idx}_{p['match']}"):
@@ -410,7 +420,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
                                     new_matrice
                                 ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
 
-                                # Aggiornamento pulito dello stato senza mutare la tupla
                                 casa_team, trasf_team, _ = dettagli[p['match']]
                                 st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
                                 
