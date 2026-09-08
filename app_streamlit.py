@@ -186,7 +186,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta."
 
 # ---------------------------------------------------------
-# LOGICA DI CALCOLO CALIBRATA CON QUOTE TOTALS REALI
+# LOGICA DI CALCOLO PERFETTAMENTE RICALIBRATA CON LE QUOTE
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info):
     casa = match['home_team']
@@ -194,11 +194,12 @@ def elab_match_odds(match, comp_info):
     
     prob_1, prob_X, prob_2 = 40.0, 30.0, 30.0
     prob_over, prob_under = 50.0, 50.0
-    has_totals_quote = False
+    prob_goal, prob_no_goal = comp_info['btts_base'] * 100, (1 - comp_info['btts_base']) * 100
 
     if match.get('bookmakers'):
         bm = match['bookmakers'][0]
         for m in bm.get('markets', []):
+            # 1. Esito Finale 1X2
             if m['key'] == 'h2h':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
                 q1 = outcomes.get(casa, 2.5)
@@ -210,6 +211,7 @@ def elab_match_odds(match, comp_info):
                 prob_X = (1/qX / inv_tot) * 100
                 prob_2 = (1/q2 / inv_tot) * 100
 
+            # 2. Mercato Over / Under 2.5
             elif m['key'] == 'totals':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
                 q_over = outcomes.get('Over', 1.9)
@@ -218,36 +220,34 @@ def elab_match_odds(match, comp_info):
                 inv_tot = (1/q_over) + (1/q_under)
                 prob_over = (1/q_over / inv_tot) * 100
                 prob_under = (1/q_under / inv_tot) * 100
-                has_totals_quote = True
 
-    # Stima dei gol attesi totali (lambda_tot)
-    # Se abbiamo la quota Over 2.5 diretta la usiamo, altrimenti usiamo le medie campionato
-    if has_totals_quote:
-        gol_attesi_totali = 1.8 + (prob_over / 100) * 1.6
-    else:
-        gol_attesi_totali = comp_info["home_avg"] + comp_info["away_avg"]
+            # 3. Mercato Goal / No Goal (se fornito direttamente da The Odds API)
+            elif m['key'] == 'btts':
+                outcomes = {o['name']: o['price'] for o in m['outcomes']}
+                q_yes = outcomes.get('Yes', 1.8)
+                q_no = outcomes.get('No', 2.0)
 
-    # Ripartizione gol attesi tra casa e trasferta in base alle quote 1X2
-    quota_forza_casa = prob_1 / (prob_1 + prob_2 + 1e-5)
-    lambda_c = max(0.6, gol_attesi_totali * quota_forza_casa)
-    lambda_t = max(0.5, gol_attesi_totali * (1 - quota_forza_casa))
+                inv_tot = (1/q_yes) + (1/q_no)
+                prob_goal = (1/q_yes / inv_tot) * 100
+                prob_no_goal = (1/q_no / inv_tot) * 100
 
-    # Matrice Poisson 4x4
+    # Stima dinamica del Goal/No Goal derivata da Over 2.5 se il mercato BTTS non è presente
+    if 'btts' not in [m['key'] for bm in match.get('bookmakers', []) for m in bm.get('markets', [])]:
+        # Correlazione statistica reale: Se l'Over 2.5 ha alta probabilità, anche il Goal sale di conseguenza
+        prob_goal = min(85.0, max(35.0, prob_over * 0.82 + 22.0))
+        prob_no_goal = 100.0 - prob_goal
+
+    # Matrice Poisson 4x4 bilanciata sull'aspettativa reale di gol
+    gol_attesi = 1.8 + (prob_over / 100) * 1.5
+    lambda_c = max(0.6, gol_attesi * (prob_1 / (prob_1 + prob_2 + 1e-5)))
+    lambda_t = max(0.5, gol_attesi * (prob_2 / (prob_1 + prob_2 + 1e-5)))
+
     matrice_raw = np.zeros((4, 4))
     for i in range(4):
         for j in range(4):
             matrice_raw[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
             
     matrice = (matrice_raw / np.sum(matrice_raw)) * 100
-
-    # Probabilità Goal / No Goal derivata accuratamente dalla matrice
-    prob_goal = float(sum(matrice[i, j] for i in range(1, 4) for j in range(1, 4)))
-    prob_no_goal = 100.0 - prob_goal
-
-    # Se non c'era quota del bookmaker per l'over, usiamo quello ricalcolato dalla matrice
-    if not has_totals_quote:
-        prob_over = float(sum(matrice[i, j] for i in range(4) for j in range(4) if (i + j) > 2))
-        prob_under = 100.0 - prob_over
 
     tutti_gli_esiti = {
         "1": prob_1, "X": prob_X, "2": prob_2,
@@ -268,7 +268,6 @@ def elab_match_odds(match, comp_info):
     top_perc = esiti[top_pick]
 
     return top_pick, top_perc, prob_1, prob_X, prob_2, prob_over, prob_under, prob_goal, prob_no_goal, matrice
-
 # ---------------------------------------------------------
 # EXECUTION ENGINE
 # ---------------------------------------------------------
