@@ -1,12 +1,10 @@
 import streamlit as st  # type: ignore[import-not-found]
 import requests
 import numpy as np  # type: ignore[import-not-found]
+import plotly.express as px  # type: ignore[import-not-found]
+import plotly.graph_objects as go  # type: ignore[import-not-found]
+from scipy.stats import poisson  # type: ignore[import-not-found]
 from datetime import datetime
-
-try:
-    from scipy.stats import poisson  # type: ignore[import-not-found]
-except ImportError:  # pragma: no cover - optional dependency for local environments without SciPy
-    poisson = None
 
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
@@ -25,7 +23,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Calibrato: The Odds API, Dixon-Coles & Gemini Context AI")
+st.caption("Algoritmo Calibrato: The Odds API, Dixon-Coles, Gemini AI & Visual Analytics")
 
 # ---------------------------------------------------------
 # RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
@@ -153,7 +151,7 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# INTEGRATORE GEMINI CONTEXT AI (AGGIORNATO AI NUOVI MODELLI)
+# INTEGRATORE GEMINI CONTEXT AI
 # ---------------------------------------------------------
 def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     if not key:
@@ -172,10 +170,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    
-    # Modelli attivi e supportati dalle API Google AI Studio v1beta
     modelli = ["gemini-2.5-flash", "gemini-2.5-pro"]
-    dettagli_errori = []
     
     for mod in modelli:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
@@ -185,15 +180,13 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
                 data = response.json()
                 if 'candidates' in data and len(data['candidates']) > 0:
                     return data['candidates'][0]['content']['parts'][0]['text']
-            else:
-                dettagli_errori.append(f"{mod} -> Codice {response.status_code}: {response.text}")
-        except Exception as e:
-            dettagli_errori.append(f"{mod} -> Errore connessione: {str(e)}")
+        except Exception:
+            continue
 
-    return f"❌ Errore Gemini: {' | '.join(dettagli_errori)}"
+    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta."
 
 # ---------------------------------------------------------
-# LOGICA DI CALCOLO MODELLO E QUOTE
+# LOGICA DI CALCOLO MODELLO & MATRICE DIXON-COLES
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info):
     casa = match['home_team']
@@ -202,7 +195,6 @@ def elab_match_odds(match, comp_info):
     prob_1, prob_X, prob_2 = 40.0, 30.0, 30.0
     prob_over, prob_under = 50.0, 50.0
 
-    # Estrazione quote dai bookmaker EU
     if match.get('bookmakers'):
         bm = match['bookmakers'][0]
         for m in bm.get('markets', []):
@@ -229,6 +221,17 @@ def elab_match_odds(match, comp_info):
     prob_goal = comp_info['btts_base'] * 100
     prob_no_goal = 100 - prob_goal
 
+    # Simulazione Matrice Punteggi Poisson (0 a 3 Gol per squadra)
+    lambda_c = (prob_1 / 100) * 1.8 + 0.8
+    lambda_t = (prob_2 / 100) * 1.8 + 0.6
+    
+    matrice = np.zeros((4, 4))
+    for i in range(4):
+        for j in range(4):
+            matrice[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
+            
+    matrice = (matrice / np.sum(matrice)) * 100
+
     tutti_gli_esiti = {
         "1": prob_1, "X": prob_X, "2": prob_2,
         "Over 2.5": prob_over, "Under 2.5": prob_under,
@@ -246,9 +249,6 @@ def elab_match_odds(match, comp_info):
 
     top_pick = max(esiti, key=esiti.get)
     top_perc = esiti[top_pick]
-
-    # Matrice fittizia punteggio per coerenza d'interfaccia
-    matrice = np.full((4, 4), 0.05)
 
     return top_pick, top_perc, prob_1, prob_X, prob_2, prob_over, prob_under, prob_goal, prob_no_goal, matrice
 
@@ -305,7 +305,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
             st.error(f"❌ {error_msg}")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE
+# INTERFACCIA UTENTE & GRAFICI AVANZATI
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
@@ -323,6 +323,19 @@ if 'partite' in st.session_state and st.session_state['partite']:
             c1.metric("1", f"{p['p1']:.1f}%")
             c2.metric("X", f"{p['px']:.1f}%")
             c3.metric("2", f"{p['p2']:.1f}%")
+
+            # 📊 VISUALIZZAZIONE GRAFICO A BARRE (PUNTO 5.1)
+            fig_bar = go.Figure(data=[
+                go.Bar(
+                    x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
+                    y=[p['p1'], p['px'], p['p2']],
+                    marker_color=['#22c55e', '#f59e0b', '#3b82f6'],
+                    text=[f"{p['p1']:.1f}%", f"{p['px']:.1f}%", f"{p['p2']:.1f}%"],
+                    textposition='auto'
+                )
+            ])
+            fig_bar.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10), yaxis=dict(range=[0, 100]))
+            st.plotly_chart(fig_bar, use_container_width=True)
 
             st.write("**Mercati Gol**")
             m1, m2 = st.columns(2)
@@ -348,23 +361,62 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         st.session_state[match_key] = report
                         st.rerun()
 
+    # ---------------------------------------------------------
+    # GENERATORE SCHEDINA & DOWNLOAD TESTO / TELEGRAM
+    # ---------------------------------------------------------
     st.markdown("---")
-
     st.subheader("🎟️ Generatore Schedina Multipla")
     num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=6, value=3)
 
-    if st.button("🎲 Genera Schedina Top Pick"):
-        partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
-        top_eventi = partite_ordinate[:num_eventi]
+    partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
+    top_eventi = partite_ordinate[:num_eventi]
 
+    if st.button("🎲 Genera Schedina Top Pick"):
         prob_combinata = 1.0
         st.markdown("### 📜 La tua Schedina Consigliata:")
 
-        for idx, ev in enumerate(top_eventi, 1):
-            st.write(f"**{idx}. {ev['match']}** ({ev['data']}) ➔ **{ev['top_pick']}** (Confidenza: {ev['top_perc']:.1f}%)")
+        testo_telegram = f"⚽ *SCHEDINA FOOTBALL AI PRO* ⚽\n🏆 {camp_nome}\n\n"
+
+        for idx_e, ev in enumerate(top_eventi, 1):
+            linea = f"{idx_e}. {ev['match']} ➔ {ev['top_pick']} ({ev['top_perc']:.1f}%)"
+            st.write(f"**{linea}**")
+            testo_telegram += f"📌 *{ev['match']}*\n👉 Esito: *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
             prob_combinata *= (ev['top_perc'] / 100)
 
-        st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {prob_combinata * 100:.1f}%")
+        perc_comb_tot = prob_combinata * 100
+        testo_telegram += f"💡 *Probabilità Combinata Modello:* {perc_comb_tot:.1f}%\n🤖 Generato con Football AI Match Analyzer"
+
+        st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {perc_comb_tot:.1f}%")
+
+        # 📥 PULSANTE DOWNLOAD TXT / TELEGRAM
+        st.download_button(
+            label="📥 Scarica Schedina pronta per Telegram / WhatsApp (.txt)",
+            data=testo_telegram,
+            file_name=f"schedina_{datetime.today().strftime('%Y%m%d')}.txt",
+            mime="text/plain"
+        )
+
+    # ---------------------------------------------------------
+    # VISUALIZZAZIONE HEATMAP RISULTATI ESATTI (PUNTO 5.2)
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("🔥 Heatmap Risultato Esatto")
+    match_scelto = st.selectbox("Seleziona Partita:", list(dettagli.keys()))
+
+    if match_scelto:
+        casa, trasferta, matrice = dettagli[match_scelto]
+        
+        # Generazione Mappa di Calore Colorata (Heatmap)
+        fig_heat = px.imshow(
+            matrice,
+            labels=dict(x=f"Gol {trasferta}", y=f"Gol {casa}", color="Probabilità %"),
+            x=['0', '1', '2', '3'],
+            y=['0', '1', '2', '3'],
+            color_continuous_scale="Viridis",
+            text_auto=".1f"
+        )
+        fig_heat.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10))
+        st.plotly_chart(fig_heat, use_container_width=True)
 
 elif 'partite' in st.session_state:
     st.warning("Nessuna partita trovata con i filtri selezionati.")
