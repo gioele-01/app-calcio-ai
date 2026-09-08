@@ -1,6 +1,7 @@
 streamlit
 requests
 numpy
-pandas
 scipy
+pandas
+plotly
 google-genai
