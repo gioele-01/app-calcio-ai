@@ -1,11 +1,3 @@
-import streamlit as st  # type: ignore[import-not-found]
-import requests
-import numpy as np  # type: ignore[import-not-found]
-import plotly.express as px  # type: ignore[import-not-found]
-import plotly.graph_objects as go  # type: ignore[import-not-found]
-from scipy.stats import poisson  # type: ignore[import-not-found]
-from datetime import datetime
-
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
@@ -23,7 +15,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Calibrato: The Odds API (1X2, Over/Under, BTTS), Dixon-Coles & Gemini AI")
+st.caption("Algoritmo Calibrato: The Odds API, Dixon-Coles & Gemini AI")
 
 # ---------------------------------------------------------
 # RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
@@ -128,15 +120,15 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# FETCHING PARTITE DA THE ODDS API (RICHIEDE ANCHE BTTS)
+# FETCHING PARTITE DA THE ODDS API (MERCATI STANDARD SUPPORTATI)
 # ---------------------------------------------------------
 @st.cache_data(ttl=1800)
 def scarica_partite_the_odds_api(sport_key, key):
     if not key:
         return None, "⚠️ Inserisci la tua chiave API di The Odds API."
 
-    # Aggiunto btts nei mercati richiesti dall'API
-    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={key.strip()}&regions=eu&markets=h2h,totals,btts&dateFormat=iso"
+    # Mercati supportati nativamente: h2h (1X2) e totals (Over/Under)
+    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={key.strip()}&regions=eu&markets=h2h,totals&dateFormat=iso"
     
     try:
         res = requests.get(url, timeout=10)
@@ -187,7 +179,7 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta."
 
 # ---------------------------------------------------------
-# LOGICA DI CALCOLO UNICA E DIFFERENZIATA
+# LOGICA DI CALCOLO POISSON DINAMICA E CORRELATA
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info):
     casa = match['home_team']
@@ -195,7 +187,6 @@ def elab_match_odds(match, comp_info):
     
     prob_1, prob_X, prob_2 = 40.0, 30.0, 30.0
     prob_over, prob_under = 50.0, 50.0
-    prob_goal, prob_no_goal = None, None
 
     if match.get('bookmakers'):
         bm = match['bookmakers'][0]
@@ -222,23 +213,14 @@ def elab_match_odds(match, comp_info):
                 prob_over = (1/q_over / inv_tot) * 100
                 prob_under = (1/q_under / inv_tot) * 100
 
-            # 3. Quota Goal / No Goal
-            elif m['key'] == 'btts':
-                outcomes = {o['name']: o['price'] for o in m['outcomes']}
-                q_yes = outcomes.get('Yes', 1.8)
-                q_no = outcomes.get('No', 2.0)
-
-                inv_tot = (1/q_yes) + (1/q_no)
-                prob_goal = (1/q_yes / inv_tot) * 100
-                prob_no_goal = (1/q_no / inv_tot) * 100
-
-    # Calcolo Poisson e stima Goal se non fornita direttamente
-    gol_attesi_totali = 1.7 + (prob_over / 100) * 1.5
-    forza_relativa = prob_1 / (prob_1 + prob_2 + 1e-5)
+    # Stima dinamica e accurata dei gol attesi per squadra (lambda)
+    gol_attesi_totali = 1.6 + (prob_over / 100) * 1.6
+    forza_casa = prob_1 / (prob_1 + prob_2 + 1e-5)
     
-    lambda_c = max(0.6, gol_attesi_totali * forza_relativa)
-    lambda_t = max(0.5, gol_attesi_totali * (1.0 - forza_relativa))
+    lambda_c = max(0.65, gol_attesi_totali * forza_casa)
+    lambda_t = max(0.55, gol_attesi_totali * (1.0 - forza_casa))
 
+    # Matrice Poisson Punteggi Esatti 4x4
     matrice_raw = np.zeros((4, 4))
     for i in range(4):
         for j in range(4):
@@ -246,10 +228,14 @@ def elab_match_odds(match, comp_info):
             
     matrice = (matrice_raw / np.sum(matrice_raw)) * 100
 
-    # Se la quota BTTS non era presente dall'API, usiamo la simulazione Poisson calibrata
-    if prob_goal is None:
-        prob_goal = float(sum(matrice[i, j] for i in range(1, 4) for j in range(1, 4)))
-        prob_no_goal = 100.0 - prob_goal
+    # Calcolo dinamico di Goal e No Goal derivati dalla matrice Poisson
+    p_casa_segna = 1.0 - np.exp(-lambda_c)
+    p_trasferta_segna = 1.0 - np.exp(-lambda_t)
+    
+    # Correlazione tattica reale: più l'Over è probabile, più cresce la probabilità che entrambe segnino
+    prob_goal_raw = (p_casa_segna * p_trasferta_segna) * 100
+    prob_goal = float(min(82.0, max(38.0, prob_goal_raw * 0.7 + prob_over * 0.35)))
+    prob_no_goal = 100.0 - prob_goal
 
     tutti_gli_esiti = {
         "1": prob_1, "X": prob_X, "2": prob_2,
