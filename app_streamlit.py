@@ -26,7 +26,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Multi-Lega: Statistica Quantitative + Correttore Tattico Gemini AI")
+st.caption("Algoritmo Ibrido: Statistica Quantitative + Correttore Tattico Gemini AI")
 
 # ---------------------------------------------------------
 # RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
@@ -50,34 +50,55 @@ with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(odds_ke
 # ---------------------------------------------------------
 # MAPPATURA CAMPIONATI (THE ODDS API KEYS)
 # ---------------------------------------------------------
-code_map = {
-    "🌐 TUTTI I CAMPIONATI PRINCIPALI (MULTIPLADIRECT)": {"key": "MULTI", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.52},
-    "🇮🇹 Italia - Serie A": {"key": "soccer_italy_serie_a", "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
-    "🇮🇹 Italia - Serie B": {"key": "soccer_italy_serie_b", "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Premier League": {"key": "soccer_epl", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Championship": {"key": "soccer_efl_champ", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
-    "🇪🇸 Spagna - La Liga": {"key": "soccer_spain_la_liga", "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
-    "🇩🇪 Germania - Bundesliga": {"key": "soccer_germany_bundesliga", "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
-    "🇫🇷 Francia - Ligue 1": {"key": "soccer_france_ligue_one", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
-    "🇳🇱 Olanda - Eredivisie": {"key": "soccer_netherlands_eredivisie", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
-    "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
-    "🇪🇺 UEFA Champions League": {"key": "soccer_uefa_champs_league", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
-    "🇪🇺 UEFA Europa League": {"key": "soccer_uefa_europa_league", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
-    "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55}
-}
-
-TOP_LEAGUES_KEYS = [
-    ("🇮🇹 Serie A", "soccer_italy_serie_a"),
-    ("🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League", "soccer_epl"),
-    ("🇪🇸 La Liga", "soccer_spain_la_liga"),
-    ("🇩🇪 Bundesliga", "soccer_germany_bundesliga"),
-    ("🇫🇷 Ligue 1", "soccer_france_ligue_one"),
-    ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
-    ("🇪🇺 Europa League", "soccer_uefa_europa_league")
-]
-
 with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
-    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Modalità Multi-Lega", list(code_map.keys()))
+    code_map = {
+        "🇮🇹 Italia - Serie A": {"key": "soccer_italy_serie_a", "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
+        "🇮🇹 Italia - Serie B": {"key": "soccer_italy_serie_b", "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Premier League": {"key": "soccer_epl", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Championship": {"key": "soccer_efl_champ", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {"key": "soccer_england_league1", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.51},
+        "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {"key": "soccer_england_league2", "home_avg": 1.40, "away_avg": 1.15, "btts_base": 0.52},
+        "🇪🇸 Spagna - La Liga": {"key": "soccer_spain_la_liga", "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
+        "🇪🇸 Spagna - Segunda Division": {"key": "soccer_spain_segunda_division", "home_avg": 1.25, "away_avg": 0.95, "btts_base": 0.45},
+        "🇩🇪 Germania - Bundesliga": {"key": "soccer_germany_bundesliga", "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
+        "🇩🇪 Germania - 2. Bundesliga": {"key": "soccer_germany_bundesliga2", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.57},
+        "🇩🇪 Germania - 3. Liga": {"key": "soccer_germany_liga3", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.54},
+        "🇫🇷 Francia - Ligue 1": {"key": "soccer_france_ligue_one", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
+        "🇫🇷 Francia - Ligue 2": {"key": "soccer_france_ligue_two", "home_avg": 1.28, "away_avg": 0.98, "btts_base": 0.46},
+        "🇳🇱 Olanda - Eredivisie": {"key": "soccer_netherlands_eredivisie", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
+        "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+        "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+        "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
+        "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+        "🇨🇭 Svizzera - Super League": {"key": "soccer_switzerland_superleague", "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
+        "🇩🇰 Danimarca - Superliga": {"key": "soccer_denmark_superliga", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
+        "🇸🇪 Svezia - Allsvenskan": {"key": "soccer_sweden_allsvenskan", "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
+        "🇸🇪 Svezia - Superettan": {"key": "soccer_sweden_superettan", "home_avg": 1.42, "away_avg": 1.15, "btts_base": 0.52},
+        "🇳🇴 Norvegia - Eliteserien": {"key": "soccer_norway_eliteserien", "home_avg": 1.60, "away_avg": 1.28, "btts_base": 0.58},
+        "🇫🇮 Finlandia - Veikkausliiga": {"key": "soccer_finland_veikkausliiga", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.50},
+        "🇵🇱 Polonia - Ekstraklasa": {"key": "soccer_poland_ekstraklasa", "home_avg": 1.40, "away_avg": 1.12, "btts_base": 0.51},
+        "🇹🇷 Turchia - Super League": {"key": "soccer_turkey_super_league", "home_avg": 1.52, "away_avg": 1.20, "btts_base": 0.55},
+        "🇬🇷 Grecia - Super League": {"key": "soccer_greece_super_league", "home_avg": 1.38, "away_avg": 1.02, "btts_base": 0.47},
+        "🇷🇺 Russia - Premier League": {"key": "soccer_russia_premier_league", "home_avg": 1.40, "away_avg": 1.08, "btts_base": 0.49},
+        "🇧🇷 Brasile - Serie A": {"key": "soccer_brazil_campeonato", "home_avg": 1.48, "away_avg": 1.05, "btts_base": 0.48},
+        "🇧🇷 Brasile - Serie B": {"key": "soccer_brazil_serie_b", "home_avg": 1.32, "away_avg": 0.88, "btts_base": 0.42},
+        "🇦🇷 Argentina - Primera Div": {"key": "soccer_argentina_primera_division", "home_avg": 1.25, "away_avg": 0.92, "btts_base": 0.43},
+        "🇨🇱 Cile - Primera Division": {"key": "soccer_chile_campeonato", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.50},
+        "🇲🇽 Messico - Liga MX": {"key": "soccer_mexico_ligamx", "home_avg": 1.48, "away_avg": 1.15, "btts_base": 0.52},
+        "🇺🇸 USA - MLS": {"key": "soccer_usa_mls", "home_avg": 1.62, "away_avg": 1.22, "btts_base": 0.57},
+        "🇯🇵 Giappone - J1 League": {"key": "soccer_japan_j_league", "home_avg": 1.38, "away_avg": 1.15, "btts_base": 0.50},
+        "🇰🇷 Corea del Sud - K League 1": {"key": "soccer_korea_kleague1", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.49},
+        "🇨🇳 Cina - Super League": {"key": "soccer_china_superleague", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
+        "🇦🇺 Australia - A-League": {"key": "soccer_australia_aleague", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.58},
+        "🇪🇺 UEFA Champions League": {"key": "soccer_uefa_champs_league", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
+        "🇪🇺 UEFA Champions Qual.": {"key": "soccer_uefa_champs_league_qualification", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
+        "🇪🇺 UEFA Europa League": {"key": "soccer_uefa_europa_league", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
+        "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+        "🌎 Copa Libertadores": {"key": "soccer_conmebol_copa_libertadores", "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
+        "🌎 Copa Sudamericana": {"key": "soccer_conmebol_copa_sudamericana", "home_avg": 1.42, "away_avg": 0.95, "btts_base": 0.45}
+    }
+    
+    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Coppa", list(code_map.keys()))
     comp_info = code_map[campionato_scelto]
     sport_key = comp_info["key"]
 
@@ -113,24 +134,27 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
 # FETCHING PARTITE DA THE ODDS API
 # ---------------------------------------------------------
 @st.cache_data(ttl=1800)
-def scarica_partite_the_odds_api(s_key, key):
+def scarica_partite_the_odds_api(sport_key, key):
     if not key:
         return None, "⚠️ Inserisci la tua chiave API di The Odds API."
 
-    url = f"https://api.the-odds-api.com/v4/sports/{s_key}/odds/?apiKey={key.strip()}&regions=eu&markets=h2h,totals&dateFormat=iso"
+    url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={key.strip()}&regions=eu&markets=h2h,totals&dateFormat=iso"
     
     try:
         res = requests.get(url, timeout=10)
         if res.status_code == 200:
             data = res.json()
-            return data, None
+            if data:
+                return data, None
+            else:
+                return None, "Nessuna partita in programma trovata per questo campionato al momento."
         else:
             return None, f"Errore The Odds API ({res.status_code}): {res.text}"
     except Exception as e:
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI TACTICAL CORRECTOR
+# GEMINI TACTICAL CORRECTOR (CON ESTRAZIONE JSON INFALLIBILE)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -220,6 +244,7 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
                 prob_over = (1/q_over / inv_tot) * 100
                 prob_under = (1/q_under / inv_tot) * 100
 
+    # Applicazione dello shift tattico calcolato da Gemini
     p1_mod = max(5.0, min(85.0, prob_1 + home_shift))
     p2_mod = max(5.0, min(85.0, prob_2 + away_shift))
     px_mod = max(5.0, 100.0 - (p1_mod + p2_mod))
@@ -229,6 +254,7 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     px_final = (px_mod / tot_mod) * 100
     p2_final = (p2_mod / tot_mod) * 100
 
+    # Calcolo Poisson e Gol Attesi adattati allo shift
     gol_attesi_totali = 1.6 + (prob_over / 100) * 1.6
     forza_casa = p1_final / (p1_final + p2_final + 1e-5)
     
@@ -270,68 +296,59 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     return top_pick, top_perc, p1_final, px_final, p2_final, prob_over, prob_under, prob_goal, prob_no_goal, matrice
 
 # ---------------------------------------------------------
-# EXECUTION ENGINE MULTI-LEGA
+# EXECUTION ENGINE
 # ---------------------------------------------------------
 if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
-        st.error("Inserisci la chiave API di The Odds API per continuare.")
+        st.error("Inserisci la chiave API di The Odds API per continuar.")
     else:
-        partite_analizzate = []
-        dettagli_matrici = {}
-        raw_matches_dict = {}
-        oggi_str = datetime.today().strftime('%Y-%m-%d')
+        with st.spinner("Scaricamento palinsesti e calcolo probabilità quantitative..."):
+            all_matches, error_msg = scarica_partite_the_odds_api(sport_key, api_key)
 
-        if sport_key == "MULTI":
-            with st.spinner("Scaricamento palinsesti da tutti i campionati principali..."):
-                leghe_target = TOP_LEAGUES_KEYS
-        else:
-            leghe_target = [(campionato_scelto, sport_key)]
+        if all_matches:
+            partite_analizzate = []
+            dettagli_matrici = {}
+            raw_matches_dict = {}
+            oggi_str = datetime.today().strftime('%Y-%m-%d')
 
-        with st.spinner("Calcolo probabilità quantitative in corso..."):
-            for l_nome, l_key in leghe_target:
-                all_matches, error_msg = scarica_partite_the_odds_api(l_key, api_key)
+            for m in all_matches:
+                commence_time = m['commence_time'][:10]
 
-                if all_matches:
-                    for m in all_matches:
-                        commence_time = m['commence_time'][:10]
+                if filtro_data == "Solo Oggi" and commence_time != oggi_str:
+                    continue
+                elif filtro_data == "Seleziona Data Specifica" and data_selezionata and commence_time != data_selezionata.strftime('%Y-%m-%d'):
+                    continue
 
-                        if filtro_data == "Solo Oggi" and commence_time != oggi_str:
-                            continue
-                        elif filtro_data == "Seleziona Data Specifica" and data_selezionata and commence_time != data_selezionata.strftime('%Y-%m-%d'):
-                            continue
+                casa = m['home_team']
+                trasferta = m['away_team']
+                nome_match = f"{casa} vs {trasferta}"
 
-                        casa = m['home_team']
-                        trasferta = m['away_team']
-                        nome_match = f"{casa} vs {trasferta}"
+                (
+                    top_pick, perc_top, p1, px, p2,
+                    p_over, p_under, p_goal, p_ng,
+                    matrice
+                ) = elab_match_odds(m, comp_info)
 
-                        (
-                            top_pick, perc_top, p1, px, p2,
-                            p_over, p_under, p_goal, p_ng,
-                            matrice
-                        ) = elab_match_odds(m, comp_info)
+                if perc_top >= min_confidence:
+                    partite_analizzate.append({
+                        "data": commence_time,
+                        "match": nome_match,
+                        "top_pick": top_pick,
+                        "top_perc": perc_top,
+                        "p1": p1, "px": px, "p2": p2,
+                        "over": p_over, "under": p_under,
+                        "goal": p_goal, "no_goal": p_ng
+                    })
+                    dettagli_matrici[nome_match] = (casa, trasferta, matrice)
+                    raw_matches_dict[nome_match] = m
 
-                        if perc_top >= min_confidence:
-                            partite_analizzate.append({
-                                "lega": l_nome,
-                                "data": commence_time,
-                                "match": nome_match,
-                                "top_pick": top_pick,
-                                "top_perc": perc_top,
-                                "p1": p1, "px": px, "p2": p2,
-                                "over": p_over, "under": p_under,
-                                "goal": p_goal, "no_goal": p_ng
-                            })
-                            dettagli_matrici[nome_match] = (casa, trasferta, matrice)
-                            raw_matches_dict[nome_match] = m
-
-        if partite_analizzate:
             st.session_state['partite'] = partite_analizzate
             st.session_state['dettagli_matrici'] = dettagli_matrici
             st.session_state['raw_matches'] = raw_matches_dict
             st.session_state['campionato_corrente'] = campionato_scelto
             st.rerun()
         else:
-            st.error("❌ Nessuna partita trovata con i filtri selezionati.")
+            st.error(f"❌ {error_msg}")
 
 # ---------------------------------------------------------
 # INTERFACCIA UTENTE & GRAFICI AVANZATI
@@ -342,7 +359,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
     raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
 
-    st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite nel palinsesto globale")
+    st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite nel palinsesto")
 
     # 🧠 PULSANTE ANALISI TATTICA IN BLOCCO
     if st.button("🧠 Ricalcola TUTTI i match con Gemini AI in Blocco"):
@@ -384,7 +401,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         p['goal'], p['no_goal'] = new_goal, new_ng
 
                 progress_bar.progress((idx_p + 1) / totale_p)
-                time.sleep(0.5)
+                time.sleep(0.5)  # Pausa anti rate-limit API
 
             status_text.success("✅ Analisi in blocco completata con successo per tutte le partite!")
             st.rerun()
@@ -393,9 +410,8 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     for idx, p in enumerate(partite):
         match_key = f"gemini_report_{p['match']}"
-        lega_label = f"[{p.get('lega', camp_nome)}]"
         
-        with st.expander(f"⚽ **{p['match']}** {lega_label} ({p['data']})\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
+        with st.expander(f"⚽ **{p['match']}** ({p['data']})\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
             st.write("**Esito Finale (1X2)**")
             c1, c2, c3 = st.columns(3)
             c1.metric("1", f"{p['p1']:.1f}%")
@@ -465,26 +481,25 @@ if 'partite' in st.session_state and st.session_state['partite']:
                             st.error(err)
 
     # ---------------------------------------------------------
-    # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE
+    # GENERATORE SCHEDINA MULTIPLA DIVERSIFICATA
     # ---------------------------------------------------------
     st.markdown("---")
-    st.subheader("🎟️ Generatore Schedina Multipla Globale")
-    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=8, value=4)
+    st.subheader("🎟️ Generatore Schedina Multipla")
+    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=6, value=3)
 
     partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
     top_eventi = partite_ordinate[:num_eventi]
 
-    if st.button("🎲 Genera Schedina Top Pick Globale"):
+    if st.button("🎲 Genera Schedina Top Pick"):
         prob_combinata = 1.0
-        st.markdown("### 📜 La tua Schedina Consigliata (Multi-Campionato):")
+        st.markdown("### 📜 La tua Schedina Consigliata:")
 
-        testo_telegram = f"⚽ *SCHEDINA MULTI-CAMPIONATO FOOTBALL AI PRO* ⚽\n📅 Data: {datetime.today().strftime('%d/%m/%Y')}\n\n"
+        testo_telegram = f"⚽ *SCHEDINA FOOTBALL AI PRO* ⚽\n🏆 {camp_nome}\n\n"
 
         for idx_e, ev in enumerate(top_eventi, 1):
-            l_info = f"[{ev.get('lega', camp_nome)}]"
-            linea = f"{idx_e}. {ev['match']} {l_info} ➔ {ev['top_pick']} ({ev['top_perc']:.1f}%)"
+            linea = f"{idx_e}. {ev['match']} ➔ {ev['top_pick']} ({ev['top_perc']:.1f}%)"
             st.write(f"**{linea}**")
-            testo_telegram += f"📌 *{ev['match']}* {l_info}\n👉 Esito: *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
+            testo_telegram += f"📌 *{ev['match']}*\n👉 Esito: *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
             prob_combinata *= (ev['top_perc'] / 100)
 
         perc_comb_tot = prob_combinata * 100
@@ -496,7 +511,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
         st.download_button(
             label="📥 Scarica Schedina pronta per Telegram / WhatsApp (.txt)",
             data=testo_telegram,
-            file_name=f"schedina_globale_{datetime.today().strftime('%Y%m%d')}.txt",
+            file_name=f"schedina_{datetime.today().strftime('%Y%m%d')}.txt",
             mime="text/plain"
         )
 
