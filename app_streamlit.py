@@ -401,14 +401,24 @@ if 'partite' in st.session_state and st.session_state['partite']:
                             
                             st.session_state[match_key] = report_txt
                             
-                            # Ricalcolo con lo shift
+                            # Ricalcolo con lo shift tattico applicato
                             raw_match = raw_m_dict.get(p['match'])
                             if raw_match:
                                 (
-                                    p['top_pick'], p['top_perc'], p['p1'], p['px'], p['p2'],
-                                    p['over'], p['under'], p['goal'], p['no_goal'],
-                                    dettagli[p['match']][2]
+                                    new_pick, new_perc, new_p1, new_px, new_p2,
+                                    new_over, new_under, new_goal, new_ng,
+                                    new_matrice
                                 ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
+
+                                # Aggiornamento pulito dello stato senza mutare la tupla
+                                casa_team, trasf_team, _ = dettagli[p['match']]
+                                st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
+                                
+                                p['top_pick'] = new_pick
+                                p['top_perc'] = new_perc
+                                p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
+                                p['over'], p['under'] = new_over, new_under
+                                p['goal'], p['no_goal'] = new_goal, new_ng
 
                             st.rerun()
                         else:
