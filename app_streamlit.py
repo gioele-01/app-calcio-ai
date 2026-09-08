@@ -1,3 +1,11 @@
+import streamlit as st  # type: ignore[import-not-found]
+import requests
+import numpy as np  # type: ignore[import-not-found]
+import plotly.express as px  # type: ignore[import-not-found]
+import plotly.graph_objects as go  # type: ignore[import-not-found]
+from scipy.stats import poisson  # type: ignore[import-not-found]
+from datetime import datetime
+
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
 # ---------------------------------------------------------
