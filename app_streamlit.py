@@ -2,6 +2,7 @@ import streamlit as st  # type: ignore[import-not-found]
 import requests
 import json
 import re
+import time
 import numpy as np  # type: ignore[import-not-found]
 import plotly.express as px  # type: ignore[import-not-found]
 import plotly.graph_objects as go  # type: ignore[import-not-found]
@@ -299,7 +300,7 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
 # ---------------------------------------------------------
 if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
-        st.error("Inserisci la chiave API di The Odds API per continuare.")
+        st.error("Inserisci la chiave API di The Odds API per continuar.")
     else:
         with st.spinner("Scaricamento palinsesti e calcolo probabilità quantitative..."):
             all_matches, error_msg = scarica_partite_the_odds_api(sport_key, api_key)
@@ -360,6 +361,53 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite nel palinsesto")
 
+    # 🧠 PULSANTE ANALISI TATTICA IN BLOCCO
+    if st.button("🧠 Ricalcola TUTTI i match con Gemini AI in Blocco"):
+        if not gemini_api_key:
+            st.error("Inserisci la chiave GEMINI_API_KEY nei Secrets prima di continuare.")
+        else:
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            totale_p = len(partite)
+
+            for idx_p, p in enumerate(partite):
+                match_key = f"gemini_report_{p['match']}"
+                status_text.text(f"Analisi in corso ({idx_p+1}/{totale_p}): {p['match']}...")
+                
+                ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
+                if ai_res:
+                    h_s = ai_res.get("home_shift", 0.0)
+                    a_s = ai_res.get("away_shift", 0.0)
+                    report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
+                                 f"⚡ *Correzione Applicata:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                    
+                    st.session_state[match_key] = report_txt
+                    
+                    raw_match = raw_m_dict.get(p['match'])
+                    if raw_match:
+                        (
+                            new_pick, new_perc, new_p1, new_px, new_p2,
+                            new_over, new_under, new_goal, new_ng,
+                            new_matrice
+                        ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
+
+                        casa_team, trasf_team, _ = dettagli[p['match']]
+                        st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
+                        
+                        p['top_pick'] = new_pick
+                        p['top_perc'] = new_perc
+                        p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
+                        p['over'], p['under'] = new_over, new_under
+                        p['goal'], p['no_goal'] = new_goal, new_ng
+
+                progress_bar.progress((idx_p + 1) / totale_p)
+                time.sleep(0.5)  # Pausa anti rate-limit API
+
+            status_text.success("✅ Analisi in blocco completata con successo per tutte le partite!")
+            st.rerun()
+
+    st.markdown("---")
+
     for idx, p in enumerate(partite):
         match_key = f"gemini_report_{p['match']}"
         
@@ -411,7 +459,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
                             
                             st.session_state[match_key] = report_txt
                             
-                            # Ricalcolo con lo shift tattico applicato
                             raw_match = raw_m_dict.get(p['match'])
                             if raw_match:
                                 (
