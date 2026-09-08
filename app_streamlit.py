@@ -1,5 +1,6 @@
 import streamlit as st  # type: ignore[import-not-found]
 import requests
+import json
 import numpy as np  # type: ignore[import-not-found]
 import plotly.express as px  # type: ignore[import-not-found]
 import plotly.graph_objects as go  # type: ignore[import-not-found]
@@ -23,7 +24,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Calibrato: The Odds API, Dixon-Coles & Gemini AI")
+st.caption("Algoritmo Ibrido: Statistica Quantitative + Correttore Tattico Gemini AI")
 
 # ---------------------------------------------------------
 # RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
@@ -128,14 +129,13 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     )
 
 # ---------------------------------------------------------
-# FETCHING PARTITE DA THE ODDS API (MERCATI STANDARD SUPPORTATI)
+# FETCHING PARTITE DA THE ODDS API
 # ---------------------------------------------------------
 @st.cache_data(ttl=1800)
 def scarica_partite_the_odds_api(sport_key, key):
     if not key:
         return None, "⚠️ Inserisci la tua chiave API di The Odds API."
 
-    # Mercati supportati nativamente: h2h (1X2) e totals (Over/Under)
     url = f"https://api.the-odds-api.com/v4/sports/{sport_key}/odds/?apiKey={key.strip()}&regions=eu&markets=h2h,totals&dateFormat=iso"
     
     try:
@@ -152,22 +152,28 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# INTEGRATORE GEMINI CONTEXT AI
+# GEMINI TACTICAL CORRECTOR (ESTRAE SHIFT IN FORMATO JSON)
 # ---------------------------------------------------------
-def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
+def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
-        return "⚠️ Nessuna chiave API fornita. Controlla GEMINI_API_KEY nei Secrets."
+        return None, "⚠️ Nessuna chiave GEMINI_API_KEY nei Secrets."
 
     key_clean = key.strip().replace('"', '').replace("'", "")
     
     prompt = f"""
-    Sei un analista tattico di calcio esperto. 
-    Il nostro modello matematico-statistico prevede per la partita '{match_name}' l'esito '{pronostico_math}' con una probabilità del {perc_math:.1f}%.
-    
-    Analizza brevemente (massimo 3-4 frasi sintetiche) il contesto di questa partita:
-    1. Eventuali assenze, squalifiche o infortuni rilevanti per le due squadre.
-    2. Motivazioni di classifica o stanchezza da impegni ravvicinati/turnover.
-    3. Concludi indicando se il contesto conferma o sconsiglia il pronostico.
+    Sei un analista tattico quantitativo di calcio.
+    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità base:
+    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
+
+    Analizza infortuni dei titolari, turnover, stanchezza, stato di forma e motivazioni di classifica.
+    Calcola un piccolo aggiustamento di probabilità (shift%) per la squadra di casa (da -8.0 a +8.0) e per la squadra in trasferta (da -8.0 a +8.0).
+
+    Rispondi TASSATIVAMENTE in formato JSON puro SENZA blocchi di codice markdown, usando questa struttura esatta:
+    {{
+        "home_shift": 2.5,
+        "away_shift": -1.5,
+        "analisi_sintetica": "La tua analisi breve in 3 frasi..."
+    }}
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -180,16 +186,20 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
             if response.status_code == 200:
                 data = response.json()
                 if 'candidates' in data and len(data['candidates']) > 0:
-                    return data['candidates'][0]['content']['parts'][0]['text']
-        except Exception:
+                    text_res = data['candidates'][0]['content']['parts'][0]['text']
+                    # Pulizia da ev. markdown ```json
+                    clean_json_str = text_res.replace("```json", "").replace("```", "").strip()
+                    parsed = json.loads(clean_json_str)
+                    return parsed, None
+        except Exception as e:
             continue
 
-    return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta."
+    return None, "⚠️ Impossibile completare l'analisi con Gemini."
 
 # ---------------------------------------------------------
-# LOGICA DI CALCOLO POISSON DINAMICA E CORRELATA
+# CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
 # ---------------------------------------------------------
-def elab_match_odds(match, comp_info):
+def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     casa = match['home_team']
     trasferta = match['away_team']
     
@@ -199,7 +209,6 @@ def elab_match_odds(match, comp_info):
     if match.get('bookmakers'):
         bm = match['bookmakers'][0]
         for m in bm.get('markets', []):
-            # 1. Quota 1X2
             if m['key'] == 'h2h':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
                 q1 = outcomes.get(casa, 2.5)
@@ -211,7 +220,6 @@ def elab_match_odds(match, comp_info):
                 prob_X = (1/qX / inv_tot) * 100
                 prob_2 = (1/q2 / inv_tot) * 100
 
-            # 2. Quota Over / Under 2.5
             elif m['key'] == 'totals':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
                 q_over = outcomes.get('Over', 1.9)
@@ -221,14 +229,24 @@ def elab_match_odds(match, comp_info):
                 prob_over = (1/q_over / inv_tot) * 100
                 prob_under = (1/q_under / inv_tot) * 100
 
-    # Stima dinamica e accurata dei gol attesi per squadra (lambda)
+    # 🧠 APPLICAZIONE SHIFT TATTICO GEMINI SU 1X2
+    p1_mod = max(5.0, min(85.0, prob_1 + home_shift))
+    p2_mod = max(5.0, min(85.0, prob_2 + away_shift))
+    px_mod = max(5.0, 100.0 - (p1_mod + p2_mod))
+    
+    # Rinormalizzazione a 100%
+    tot_mod = p1_mod + px_mod + p2_mod
+    p1_final = (p1_mod / tot_mod) * 100
+    px_final = (px_mod / tot_mod) * 100
+    p2_final = (p2_mod / tot_mod) * 100
+
+    # Calcolo Poisson e Gol Attesi adattati allo shift
     gol_attesi_totali = 1.6 + (prob_over / 100) * 1.6
-    forza_casa = prob_1 / (prob_1 + prob_2 + 1e-5)
+    forza_casa = p1_final / (p1_final + p2_final + 1e-5)
     
     lambda_c = max(0.65, gol_attesi_totali * forza_casa)
     lambda_t = max(0.55, gol_attesi_totali * (1.0 - forza_casa))
 
-    # Matrice Poisson Punteggi Esatti 4x4
     matrice_raw = np.zeros((4, 4))
     for i in range(4):
         for j in range(4):
@@ -236,23 +254,21 @@ def elab_match_odds(match, comp_info):
             
     matrice = (matrice_raw / np.sum(matrice_raw)) * 100
 
-    # Calcolo dinamico di Goal e No Goal derivati dalla matrice Poisson
     p_casa_segna = 1.0 - np.exp(-lambda_c)
     p_trasferta_segna = 1.0 - np.exp(-lambda_t)
     
-    # Correlazione tattica reale: più l'Over è probabile, più cresce la probabilità che entrambe segnino
     prob_goal_raw = (p_casa_segna * p_trasferta_segna) * 100
     prob_goal = float(min(82.0, max(38.0, prob_goal_raw * 0.7 + prob_over * 0.35)))
     prob_no_goal = 100.0 - prob_goal
 
     tutti_gli_esiti = {
-        "1": prob_1, "X": prob_X, "2": prob_2,
+        "1": p1_final, "X": px_final, "2": p2_final,
         "Over 2.5": prob_over, "Under 2.5": prob_under,
         "Goal": prob_goal, "No Goal": prob_no_goal
     }
 
     if mercato_preferito == "Solo 1X2":
-        esiti = {"1": prob_1, "X": prob_X, "2": prob_2}
+        esiti = {"1": p1_final, "X": px_final, "2": p2_final}
     elif mercato_preferito == "Solo Over / Under":
         esiti = {"Over 2.5": prob_over, "Under 2.5": prob_under}
     elif mercato_preferito == "Solo Goal / No Goal":
@@ -263,7 +279,7 @@ def elab_match_odds(match, comp_info):
     top_pick = max(esiti, key=esiti.get)
     top_perc = esiti[top_pick]
 
-    return top_pick, top_perc, prob_1, prob_X, prob_2, prob_over, prob_under, prob_goal, prob_no_goal, matrice
+    return top_pick, top_perc, p1_final, px_final, p2_final, prob_over, prob_under, prob_goal, prob_no_goal, matrice
 
 # ---------------------------------------------------------
 # EXECUTION ENGINE
@@ -272,12 +288,13 @@ if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
         st.error("Inserisci la chiave API di The Odds API per continuare.")
     else:
-        with st.spinner("Scaricamento palinsesti e calcolo probabilità avanzate..."):
+        with st.spinner("Scaricamento palinsesti e calcolo probabilità quantitative..."):
             all_matches, error_msg = scarica_partite_the_odds_api(sport_key, api_key)
 
         if all_matches:
             partite_analizzate = []
             dettagli_matrici = {}
+            raw_matches_dict = {}
             oggi_str = datetime.today().strftime('%Y-%m-%d')
 
             for m in all_matches:
@@ -309,9 +326,11 @@ if st.button("🚀 AVVIA ANALISI AI"):
                         "goal": p_goal, "no_goal": p_ng
                     })
                     dettagli_matrici[nome_match] = (casa, trasferta, matrice)
+                    raw_matches_dict[nome_match] = m
 
             st.session_state['partite'] = partite_analizzate
             st.session_state['dettagli_matrici'] = dettagli_matrici
+            st.session_state['raw_matches'] = raw_matches_dict
             st.session_state['campionato_corrente'] = campionato_scelto
             st.rerun()
         else:
@@ -323,12 +342,14 @@ if st.button("🚀 AVVIA ANALISI AI"):
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
     dettagli = st.session_state['dettagli_matrici']
+    raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
 
     st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite nel palinsesto")
 
     for idx, p in enumerate(partite):
         match_key = f"gemini_report_{p['match']}"
+        shift_key = f"shift_applied_{p['match']}"
         
         with st.expander(f"⚽ **{p['match']}** ({p['data']})\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
             st.write("**Esito Finale (1X2)**")
@@ -362,17 +383,36 @@ if 'partite' in st.session_state and st.session_state['partite']:
             st.markdown("---")
             if match_key in st.session_state:
                 st.info(st.session_state[match_key])
-                if st.button("🔄 Aggiorna Report", key=f"reload_{idx}_{p['match']}"):
+                if st.button("🔄 Ripristina Statistica Base", key=f"reload_{idx}_{p['match']}"):
                     del st.session_state[match_key]
+                    if shift_key in st.session_state:
+                        del st.session_state[shift_key]
                     st.rerun()
             else:
-                if st.button("🧠 Analizza Contesto Notizie", key=f"btn_{idx}_{p['match']}"):
-                    with st.spinner("Gemini sta analizzando la partita..."):
-                        report = analizza_contesto_con_gemini(
-                            p['match'], p['top_pick'], p['top_perc'], gemini_api_key
-                        )
-                        st.session_state[match_key] = report
-                        st.rerun()
+                if st.button("🧠 Studio Tattico Gemini & Correzione %", key=f"btn_{idx}_{p['match']}"):
+                    with st.spinner("Gemini sta analizzando notizie, formazioni e ricalcolando le percentuali..."):
+                        ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
+                        
+                        if ai_res:
+                            h_s = ai_res.get("home_shift", 0.0)
+                            a_s = ai_res.get("away_shift", 0.0)
+                            report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
+                                         f"⚡ *Correzione Applicata:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                            
+                            st.session_state[match_key] = report_txt
+                            
+                            # Ricalcolo con lo shift
+                            raw_match = raw_m_dict.get(p['match'])
+                            if raw_match:
+                                (
+                                    p['top_pick'], p['top_perc'], p['p1'], p['px'], p['p2'],
+                                    p['over'], p['under'], p['goal'], p['no_goal'],
+                                    dettagli[p['match']][2]
+                                ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
+
+                            st.rerun()
+                        else:
+                            st.error(err)
 
     # ---------------------------------------------------------
     # GENERATORE SCHEDINA MULTIPLA DIVERSIFICATA
