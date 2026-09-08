@@ -186,14 +186,14 @@ def analizza_contesto_con_gemini(match_name, pronostico_math, perc_math, key):
     return "⚠️ Impossibile contattare i server Gemini. Verifica che la chiave GEMINI_API_KEY nei Secrets sia corretta."
 
 # ---------------------------------------------------------
-# LOGICA DI CALCOLO MODELLO & MATRICE DIXON-COLES
+# LOGICA DI CALCOLO MODELLO & MATRICE DINAMICA
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info):
     casa = match['home_team']
     trasferta = match['away_team']
     
     prob_1, prob_X, prob_2 = 40.0, 30.0, 30.0
-    prob_over, prob_under = 50.0, 50.0
+    q_over_book, q_under_book = 1.9, 1.9
 
     if match.get('bookmakers'):
         bm = match['bookmakers'][0]
@@ -211,26 +211,27 @@ def elab_match_odds(match, comp_info):
 
             elif m['key'] == 'totals':
                 outcomes = {o['name']: o['price'] for o in m['outcomes']}
-                q_over = outcomes.get('Over', 1.9)
-                q_under = outcomes.get('Under', 1.9)
+                q_over_book = outcomes.get('Over', 1.9)
+                q_under_book = outcomes.get('Under', 1.9)
 
-                inv_tot = (1/q_over) + (1/q_under)
-                prob_over = (1/q_over / inv_tot) * 100
-                prob_under = (1/q_under / inv_tot) * 100
-
-    prob_goal = comp_info['btts_base'] * 100
-    prob_no_goal = 100 - prob_goal
-
-    # Simulazione Matrice Punteggi Poisson (0 a 3 Gol per squadra)
-    lambda_c = (prob_1 / 100) * 1.8 + 0.8
-    lambda_t = (prob_2 / 100) * 1.8 + 0.6
+    # Parametrizzazione asimmetrica gol attesi da quote
+    lambda_c = max(0.6, (prob_1 / 100) * 1.95 + (1.9 / q_over_book) * 0.4)
+    lambda_t = max(0.5, (prob_2 / 100) * 1.75 + (1.9 / q_over_book) * 0.3)
     
-    matrice = np.zeros((4, 4))
+    # Costruzione Matrice Poisson 4x4 (punteggi da 0-0 a 3-3)
+    matrice_raw = np.zeros((4, 4))
     for i in range(4):
         for j in range(4):
-            matrice[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
+            matrice_raw[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
             
-    matrice = (matrice / np.sum(matrice)) * 100
+    matrice = (matrice_raw / np.sum(matrice_raw)) * 100
+
+    # 🎯 CALCOLO DINAMICO DAI PUNTEGGI DELLA MATRICE
+    prob_goal = float(sum(matrice[i, j] for i in range(1, 4) for j in range(1, 4)))
+    prob_no_goal = 100.0 - prob_goal
+
+    prob_over = float(sum(matrice[i, j] for i in range(4) for j in range(4) if (i + j) > 2))
+    prob_under = 100.0 - prob_over
 
     tutti_gli_esiti = {
         "1": prob_1, "X": prob_X, "2": prob_2,
@@ -259,7 +260,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
     if not api_key:
         st.error("Inserisci la chiave API di The Odds API per continuare.")
     else:
-        with st.spinner("Scaricamento palinsesti e calcolo probabilità..."):
+        with st.spinner("Scaricamento palinsesti e calcolo probabilità dinamiche..."):
             all_matches, error_msg = scarica_partite_the_odds_api(sport_key, api_key)
 
         if all_matches:
@@ -324,7 +325,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
             c2.metric("X", f"{p['px']:.1f}%")
             c3.metric("2", f"{p['p2']:.1f}%")
 
-            # 📊 VISUALIZZAZIONE GRAFICO A BARRE (PUNTO 5.1)
+            # 📊 GRAFICO BARRE PROBABILITÀ 1X2
             fig_bar = go.Figure(data=[
                 go.Bar(
                     x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
@@ -337,7 +338,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
             fig_bar.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10), yaxis=dict(range=[0, 100]))
             st.plotly_chart(fig_bar, use_container_width=True)
 
-            st.write("**Mercati Gol**")
+            st.write("**Mercati Gol Dinamici**")
             m1, m2 = st.columns(2)
             m1.metric("Over 2.5", f"{p['over']:.1f}%")
             m2.metric("Under 2.5", f"{p['under']:.1f}%")
@@ -397,7 +398,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
         )
 
     # ---------------------------------------------------------
-    # VISUALIZZAZIONE HEATMAP RISULTATI ESATTI (PUNTO 5.2)
+    # VISUALIZZAZIONE HEATMAP RISULTATI ESATTI
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🔥 Heatmap Risultato Esatto")
@@ -406,7 +407,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
     if match_scelto:
         casa, trasferta, matrice = dettagli[match_scelto]
         
-        # Generazione Mappa di Calore Colorata (Heatmap)
+        # Mappa di Calore Colorata (Heatmap)
         fig_heat = px.imshow(
             matrice,
             labels=dict(x=f"Gol {trasferta}", y=f"Gol {casa}", color="Probabilità %"),
