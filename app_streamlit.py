@@ -187,6 +187,7 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
             continue
 
     return None, "⚠️ Quota API temporaneamente satura. Attendi 5 secondi e riprova, oppure usa il pulsante 'Instant Batch'."
+
 # ---------------------------------------------------------
 # GEMINI BATCH CORRECTOR (1 SOLA CHIAMATA PER TUTTE LE PARTITE)
 # ---------------------------------------------------------
