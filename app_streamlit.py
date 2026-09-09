@@ -154,7 +154,7 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI TACTICAL CORRECTOR (TIMEOUT E MODELLI FIXED)
+# GEMINI TACTICAL CORRECTOR (PROMPT DINAMICO SENZA BIAS)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -164,17 +164,27 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     
     prompt = f"""
     Sei un analista tattico quantitativo di calcio.
-    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità base:
-    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
+    Il nostro algoritmo ha calcolato per la partita '{match_name}' le seguenti probabilità statistiche di base:
+    - Squadra di Casa (1): {p1_math:.1f}%
+    - Pareggio (X): {px_math:.1f}%
+    - Squadra Ospite (2): {p2_math:.1f}%
 
-    Analizza infortuni dei titolari, turnover, stanchezza, stato di forma e motivazioni di classifica.
-    Calcola un piccolo aggiustamento di probabilità (shift%) per la squadra di casa (da -8.0 a +8.0) e per la squadra in trasferta (da -8.0 a +8.0).
+    Valuta attentamente il contesto reale della sfida:
+    1. Infortuni di titolari chiave, squalifiche o rientri.
+    2. Turnover, stanchezza da impegni ravvicinati nelle coppe o motivazioni di classifica.
+    3. Stato di forma recente e fattore campo.
 
-    Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
+    In base alla tua analisi, stabilisci la variazione percentuale (shift) da applicare alle probabilità di base:
+    - `home_shift`: un numero decimale tra -8.0 e +8.0 per la squadra di casa.
+    - `away_shift`: un numero decimale tra -8.0 e +8.0 per la squadra ospite.
+
+    ATTENZIONE: Se la squadra di casa è sfavorita o in difficoltà, assegna un `home_shift` NEGATIVO (es. -3.5) e un `away_shift` POSITIVO (es. +3.5).
+
+    Rispondi esclusivamente in formato JSON valido usando questa struttura esatta:
     {{
-        "home_shift": 2.5,
-        "away_shift": -1.5,
-        "analisi_sintetica": "Inserisci qui l'analisi sintetica in 3 frasi..."
+        "home_shift": 0.0,
+        "away_shift": 0.0,
+        "analisi_sintetica": "Inserisci qui l'analisi motivata in 3 frasi..."
     }}
     """
     
@@ -185,14 +195,12 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
         }
     }
     
-    # Nomi esatti e attivi dei modelli ufficiali su Google AI Studio
     modelli = ["gemini-2.5-flash", "gemini-1.5-pro"]
     errori_log = []
     
     for mod in modelli:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
         try:
-            # Aumentato il timeout a 25 secondi per evitare i Read timed out
             response = requests.post(url, json=payload, timeout=25)
             if response.status_code == 200:
                 data = response.json()
