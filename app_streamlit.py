@@ -1,32 +1,152 @@
-import streamlit as st  # type: ignore[import-not-found]
-import requests
-import numpy as np  # type: ignore[import-not-found]
-import plotly.express as px  # type: ignore[import-not-found]
-import plotly.graph_objects as go  # type: ignore[import-not-found]
-from scipy.stats import poisson  # type: ignore[import-not-found]
-import json
-import re
-import time
-from datetime import datetime
+# pyright: reportMissingImports=false
+
+try:
+    import streamlit as st
+    import requests
+    import numpy as np
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from scipy.stats import poisson
+    import json
+    import re
+    import time
+    from datetime import datetime
+except ImportError as exc:
+    raise ImportError(
+        "Missing required runtime dependencies. Install with: pip install streamlit requests numpy plotly scipy"
+    ) from exc
 
 # ---------------------------------------------------------
-# CONFIGURAZIONE PAGINA & CSS RESPONSIVE MOBILE
+# CONFIGURAZIONE PAGINA & CSS AVANZATO DARK PREMIUM
 # ---------------------------------------------------------
-st.set_page_config(page_title="Football AI Pro", page_icon="⚽", layout="centered")
+st.set_page_config(
+    page_title="Football AI Match Analyzer Pro",
+    page_icon="⚽",
+    layout="centered",
+    initial_sidebar_state="collapsed"
+)
 
 st.markdown("""
 <style>
-    .block-container { padding-top: 1.5rem; padding-bottom: 2rem; padding-left: 1rem; padding-right: 1rem; }
-    .stButton>button { width: 100%; height: 3em; font-size: 16px; font-weight: bold; border-radius: 8px; }
-    [data-testid="stMetricValue"] { font-size: 19px !important; }
-    [data-testid="stMetricLabel"] { font-size: 11px !important; }
-    div[data-testid="stExpander"] { border-radius: 10px; border: 1px solid #374151; }
-    .stSelectbox label, .stSlider label { font-weight: bold; font-size: 14px; }
+    /* Importazione font moderni */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+
+    /* Sfondo globale dark sfumato */
+    .stApp {
+        background: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #0b0f19 100%);
+        color: #f3f4f6;
+    }
+
+    /* Modifica container centrale */
+    .block-container {
+        padding-top: 1.8rem;
+        padding-bottom: 3rem;
+        max-width: 760px;
+    }
+
+    /* Header e Titolo Fluo */
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-align: center;
+        margin-bottom: 0.2rem;
+    }
+
+    .sub-title {
+        font-size: 0.9rem;
+        color: #9ca3af;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+    }
+
+    /* Card Espandibili Stilizzate */
+    div[data-testid="stExpander"] {
+        background: rgba(30, 41, 59, 0.7) !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(10px);
+        margin-bottom: 1rem !important;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Metric Box personalizzati */
+    div[data-testid="stMetricValue"] {
+        font-size: 1.15rem !important;
+        font-weight: 700 !important;
+        color: #38bdf8 !important;
+    }
+
+    div[data-testid="stMetricLabel"] {
+        font-size: 0.75rem !important;
+        color: #9ca3af !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+    }
+
+    /* Pulsanti con gradiente e glow */
+    .stButton>button {
+        width: 100%;
+        background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+        color: #ffffff;
+        font-size: 15px;
+        font-weight: 700;
+        border: none;
+        border-radius: 10px;
+        padding: 0.6em 1em;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .stButton>button:hover {
+        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+        box-shadow: 0 6px 18px rgba(59, 130, 246, 0.5);
+        transform: translateY(-1px);
+    }
+
+    /* Badge Esito Consigliato */
+    .badge-pick {
+        background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        display: inline-block;
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+    }
+
+    .badge-league {
+        background: rgba(255, 255, 255, 0.1);
+        color: #e5e7eb;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 6px;
+    }
+
+    /* Sfondi per Alert e Info */
+    .stAlert {
+        border-radius: 10px;
+        background-color: rgba(15, 23, 42, 0.9) !important;
+        border: 1px solid rgba(56, 189, 248, 0.3) !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("⚽ Football AI Match Analyzer Pro")
-st.caption("Algoritmo Multi-Lega: Statistica Quantitative + Correttore Tattico Gemini AI")
+# ---------------------------------------------------------
+# HEADER APPLICAZIONE
+# ---------------------------------------------------------
+st.markdown('<div class="main-title">⚽ FOOTBALL AI PRO</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Algoritmo Quantitativo Multi-Lega & Studio Tattico Gemini AI</div>', unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # RECUPERO CHIAVI API DAI SECRETS O INPUT MANUALE
@@ -34,24 +154,24 @@ st.caption("Algoritmo Multi-Lega: Statistica Quantitative + Correttore Tattico G
 odds_key_secret = st.secrets.get("ODDS_API_KEY", "")
 gemini_key_secret = st.secrets.get("GEMINI_API_KEY", "")
 
-with st.expander("🔑 **Configurazione Chiavi API**", expanded=not bool(odds_key_secret)):
+with st.expander("🔑 **Configurazione API Studio**", expanded=not bool(odds_key_secret)):
     if odds_key_secret:
-        st.success("✅ Chiave The Odds API caricata dai Secrets!")
+        st.success("✅ Chiave The Odds API attiva")
         api_key = odds_key_secret
     else:
         api_key = st.text_input("Chiave API (The Odds API Key)", type="password")
 
     if gemini_key_secret:
-        st.success("✅ Chiave Google Gemini caricata dai Secrets!")
+        st.success("✅ Chiave Google Gemini attiva")
         gemini_api_key = gemini_key_secret
     else:
-        gemini_api_key = st.text_input("Chiave API (Google Gemini - Opzionale)", type="password")
+        gemini_api_key = st.text_input("Chiave API (Google Gemini)", type="password")
 
 # ---------------------------------------------------------
 # MAPPATURA CAMPIONATI (THE ODDS API KEYS)
 # ---------------------------------------------------------
 code_map = {
-    "🌐 TUTTI I CAMPIONATI PRINCIPALI (MULTIPLADIRECT)": {"key": "MULTI", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.52},
+    "🌐 TUTTI I CAMPIONATI PRINCIPALI": {"key": "MULTI", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.52},
     "🇮🇹 Italia - Serie A": {"key": "soccer_italy_serie_a", "home_avg": 1.42, "away_avg": 1.12, "btts_base": 0.52},
     "🇮🇹 Italia - Serie B": {"key": "soccer_italy_serie_b", "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
     "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Premier League": {"key": "soccer_epl", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
@@ -76,8 +196,8 @@ TOP_LEAGUES_KEYS = [
     ("🇪🇺 Europa League", "soccer_uefa_europa_league")
 ]
 
-with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
-    campionato_scelto = st.selectbox("🏆 Seleziona Campionato / Modalità Multi-Lega", list(code_map.keys()))
+with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
+    campionato_scelto = st.selectbox("🏆 Campionato / Selezione", list(code_map.keys()))
     comp_info = code_map[campionato_scelto]
     sport_key = comp_info["key"]
 
@@ -85,24 +205,24 @@ with st.expander("🔍 **Filtri di Ricerca & Campionato**", expanded=True):
     
     with col_f1:
         filtro_data = st.selectbox(
-            "📅 Selezione Data", 
+            "📅 Data Eventi", 
             ["Tutte le prossime", "Solo Oggi", "Seleziona Data Specifica"]
         )
     
     with col_f2:
         mercato_preferito = st.selectbox(
-            "🎯 Mercato d'Interesse",
+            "🎯 Mercato",
             ["Tutti i mercati", "Solo 1X2", "Solo Over / Under", "Solo Goal / No Goal"]
         )
 
     data_selezionata = None
     if filtro_data == "Seleziona Data Specifica":
-        data_selezionata = st.date_input("Scegli data partita", datetime.today())
+        data_selezionata = st.date_input("Scegli data", datetime.today())
 
     st.markdown("---")
     
     min_confidence = st.slider(
-        "⚡ Affidabilità minima (%)", 
+        "⚡ Confidenza minima (%)", 
         min_value=50, 
         max_value=90, 
         value=55, 
@@ -125,12 +245,12 @@ def scarica_partite_the_odds_api(s_key, key):
             data = res.json()
             return data, None
         else:
-            return None, f"Errore The Odds API ({res.status_code}): {res.text}"
+            return None, f"Errore API ({res.status_code}): {res.text}"
     except Exception as e:
-        return None, f"Errore di connessione: {str(e)}"
+        return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (CON AUTO-RETRY)
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -140,11 +260,11 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     
     prompt = f"""
     Sei un analista tattico quantitativo di calcio.
-    Il nostro algoritmo ha calcolato per la partita '{match_name}' le probabilità statistiche base:
+    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità statistiche base:
     Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
 
-    Valuta attentamente infortuni, turnover, stanchezza da coppe, forma e motivazioni.
-    In base alla tua analisi, stabilisci la variazione percentuale (shift) da applicare alle probabilità:
+    Valuta attentamente infortuni, turnover, stanchezza da coppe e motivazioni.
+    In base alla tua analisi, stabilisci la variazione percentuale (shift) per le due squadre:
     - `home_shift`: tra -8.0 e +8.0 per la casa.
     - `away_shift`: tra -8.0 e +8.0 per l'ospite.
 
@@ -162,11 +282,9 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     }
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key_clean}"
-    
-    # Tentativi automatici progressivi (1s, 3s, 5s) se i server sono occupati
     tempi_attesa = [1.0, 3.0, 5.0]
     
-    for tentativo, attesa in enumerate(tempi_attesa, 1):
+    for attesa in tempi_attesa:
         try:
             response = requests.post(url, json=payload, timeout=25)
             if response.status_code == 200:
@@ -182,14 +300,14 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
                 continue
             else:
                 return None, f"Errore Gemini ({response.status_code})"
-        except Exception as e:
+        except Exception:
             time.sleep(attesa)
             continue
 
-    return None, "⚠️ Quota API temporaneamente satura. Attendi 5 secondi e riprova, oppure usa il pulsante 'Instant Batch'."
+    return None, "⚠️ Quota API temporaneamente satura. Usa il pulsante 'Instant Batch'."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (1 SOLA CHIAMATA PER TUTTE LE PARTITE)
+# GEMINI BATCH CORRECTOR (1 SOLA CHIAMATA)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
@@ -203,13 +321,13 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
 
     prompt = f"""
     Sei un analista tattico quantitativo di calcio.
-    Analizza il contesto di ciascuna delle seguenti partite:
+    Analizza il contesto di ciascuna partita:
 
     {info_txt}
 
-    Per OGNUNA delle partite, valuta infortuni, turnover e motivazioni, calcolando uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e per l'Ospite (away_shift da -8.0 a +8.0).
+    Per OGNUNA delle partite, calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e l'Ospite (away_shift da -8.0 a +8.0).
 
-    Rispondi ESCLUSIVAMENTE con una lista JSON contenente un oggetto per ogni partita con questa struttura esatta:
+    Rispondi ESCLUSIVAMENTE con una lista JSON con questa struttura:
     [
       {{
         "match": "NomeCasa vs NomeOspite",
@@ -246,7 +364,7 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
         except Exception as e:
             return None, f"Errore connessione: {str(e)}"
 
-    return None, "⚠️ Quota API satura. Riprova tra 10 secondi."
+    return None, "⚠️ Quota API satura. Riprova tra poco."
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
@@ -333,7 +451,7 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
 # ---------------------------------------------------------
 # EXECUTION ENGINE MULTI-LEGA
 # ---------------------------------------------------------
-if st.button("🚀 AVVIA ANALISI AI"):
+if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
     if not api_key:
         st.error("Inserisci la chiave API di The Odds API per continuare.")
     else:
@@ -395,7 +513,7 @@ if st.button("🚀 AVVIA ANALISI AI"):
             st.error("❌ Nessuna partita trovata con i filtri selezionati.")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE & GRAFICI AVANZATI
+# INTERFACCIA UTENTE REDESIGN DARK PREMIUM
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
@@ -403,14 +521,14 @@ if 'partite' in st.session_state and st.session_state['partite']:
     raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
 
-    st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite nel palinsesto globale")
+    st.markdown(f"### 📊 Palinsesto Analizzato ({len(partite)} Eventi)")
 
-    # 🧠 PULSANTE ANALISI TATTICA BATCH (1 SOLA CHIAMATA API)
-    if st.button("🧠 Ricalcola TUTTI i match con Gemini AI (Instant Batch)"):
+    # 🧠 PULSANTE ANALISI TATTICA BATCH
+    if st.button("⚡ RICALCOLA TUTTI I MATCH CON GEMINI AI (INSTANT BATCH)"):
         if not gemini_api_key:
             st.error("Inserisci la chiave GEMINI_API_KEY nei Secrets prima di continuare.")
         else:
-            with st.spinner("Gemini sta analizzando simultaneamente il contesto tattico di tutto il palinsesto..."):
+            with st.spinner("Gemini sta analizzando il contesto tattico di tutto il palinsesto..."):
                 batch_res, err = studio_tattico_in_blocco_batch(partite, gemini_api_key)
                 
                 if batch_res and isinstance(batch_res, list):
@@ -424,7 +542,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                             h_s = match_info.get("home_shift", 0.0)
                             a_s = match_info.get("away_shift", 0.0)
                             report_txt = f"🧠 **Studio Tattico AI:**\n{match_info.get('analisi_sintetica', '')}\n\n" \
-                                         f"⚡ *Correzione Applicata:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
                             
                             st.session_state[match_key] = report_txt
                             
@@ -445,7 +563,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                                 p['over'], p['under'] = new_over, new_under
                                 p['goal'], p['no_goal'] = new_goal, new_ng
 
-                    st.success("✅ Analisi completata in un istante per tutte le partite!")
+                    st.success("✅ Analisi in blocco completata per tutte le partite!")
                     st.rerun()
                 else:
                     st.error(f"Errore durante l'analisi batch: {err}")
@@ -454,29 +572,52 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     for idx, p in enumerate(partite):
         match_key = f"gemini_report_{p['match']}"
-        lega_label = f"[{p.get('lega', camp_nome)}]"
+        lega_label = p.get('lega', camp_nome)
         
-        with st.expander(f"⚽ **{p['match']}** {lega_label} ({p['data']})\n\n🎯 **{p['top_pick']} ({p['top_perc']:.1f}%)**", expanded=True):
-            st.write("**Esito Finale (1X2)**")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("1", f"{p['p1']:.1f}%")
-            c2.metric("X", f"{p['px']:.1f}%")
-            c3.metric("2", f"{p['p2']:.1f}%")
+        header_card = f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div>
+                <span class="badge-league">{lega_label}</span>
+                <span style="font-weight: 700; font-size: 1.05rem; color: #f9fafb;">{p['match']}</span>
+                <span style="font-size: 0.8rem; color: #6b7280; margin-left: 8px;">({p['data']})</span>
+            </div>
+            <div>
+                <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}%</span>
+            </div>
+        </div>
+        """
+        
+        with st.expander(f"⚽ {p['match']} — {p['top_pick']} ({p['top_perc']:.1f}%)", expanded=True):
+            st.markdown(header_card, unsafe_allow_html=True)
+            st.write("")
 
-            # 📊 GRAFICO BARRE PROBABILITÀ 1X2
+            st.write("**ESITO FINALE (1X2)**")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("1 (CASA)", f"{p['p1']:.1f}%")
+            c2.metric("X (PAREGGIO)", f"{p['px']:.1f}%")
+            c3.metric("2 (OSPITE)", f"{p['p2']:.1f}%")
+
+            # 📊 GRAFICO BARRE DARK STYLED
             fig_bar = go.Figure(data=[
                 go.Bar(
                     x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
                     y=[p['p1'], p['px'], p['p2']],
-                    marker_color=['#22c55e', '#f59e0b', '#3b82f6'],
+                    marker_color=['#10b981', '#f59e0b', '#3b82f6'],
                     text=[f"{p['p1']:.1f}%", f"{p['px']:.1f}%", f"{p['p2']:.1f}%"],
                     textposition='auto'
                 )
             ])
-            fig_bar.update_layout(height=220, margin=dict(l=10, r=10, t=10, b=10), yaxis=dict(range=[0, 100]))
+            fig_bar.update_layout(
+                height=200, 
+                margin=dict(l=10, r=10, t=10, b=10), 
+                yaxis=dict(range=[0, 100], showgrid=False),
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#9ca3af')
+            )
             st.plotly_chart(fig_bar, use_container_width=True, key=f"bar_{idx}_{p['match']}")
 
-            st.write("**Mercati Gol**")
+            st.write("**MERCATI GOL**")
             m1, m2 = st.columns(2)
             m1.metric("Over 2.5", f"{p['over']:.1f}%")
             m2.metric("Under 2.5", f"{p['under']:.1f}%")
@@ -493,14 +634,14 @@ if 'partite' in st.session_state and st.session_state['partite']:
                     st.rerun()
             else:
                 if st.button("🧠 Studio Tattico Gemini & Correzione %", key=f"btn_{idx}_{p['match']}"):
-                    with st.spinner("Gemini sta analizzando notizie, formazioni e ricalcolando le percentuali..."):
+                    with st.spinner("Gemini sta analizzando notizie e formazioni..."):
                         ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
                         
                         if ai_res:
                             h_s = ai_res.get("home_shift", 0.0)
                             a_s = ai_res.get("away_shift", 0.0)
                             report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
-                                         f"⚡ *Correzione Applicata:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
                             
                             st.session_state[match_key] = report_txt
                             
@@ -529,15 +670,15 @@ if 'partite' in st.session_state and st.session_state['partite']:
     # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE
     # ---------------------------------------------------------
     st.markdown("---")
-    st.subheader("🎟️ Generatore Schedina Multipla Globale")
+    st.subheader("🎟️ Generatore Schedina Multipla")
     num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=8, value=4)
 
     partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
     top_eventi = partite_ordinate[:num_eventi]
 
-    if st.button("🎲 Genera Schedina Top Pick Globale"):
+    if st.button("🎲 GENERA SCHEDINA TOP PICK GLOBALE"):
         prob_combinata = 1.0
-        st.markdown("### 📜 La tua Schedina Consigliata (Multi-Campionato):")
+        st.markdown("### 📜 La tua Schedina Consigliata:")
 
         testo_telegram = f"⚽ *SCHEDINA MULTI-CAMPIONATO FOOTBALL AI PRO* ⚽\n📅 Data: {datetime.today().strftime('%d/%m/%Y')}\n\n"
 
@@ -576,10 +717,16 @@ if 'partite' in st.session_state and st.session_state['partite']:
             labels=dict(x=f"Gol {trasferta}", y=f"Gol {casa}", color="Probabilità %"),
             x=['0', '1', '2', '3'],
             y=['0', '1', '2', '3'],
-            color_continuous_scale="Viridis",
+            color_continuous_scale="Darkmint",
             text_auto=".1f"
         )
-        fig_heat.update_layout(height=380, margin=dict(l=10, r=10, t=30, b=10))
+        fig_heat.update_layout(
+            height=380, 
+            margin=dict(l=10, r=10, t=30, b=10),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#9ca3af')
+        )
         st.plotly_chart(fig_heat, use_container_width=True, key=f"heat_{match_scelto}")
 
 elif 'partite' in st.session_state:
