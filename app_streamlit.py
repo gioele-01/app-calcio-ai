@@ -1,9 +1,9 @@
-import streamlit as st  # pyright: ignore[reportMissingImports]
+import streamlit as st  # type: ignore[import-not-found]
 import requests
-import numpy as np  # pyright: ignore[reportMissingImports]
-import plotly.express as px  # pyright: ignore[reportMissingImports]
-import plotly.graph_objects as go  # pyright: ignore[reportMissingImports]
-from scipy.stats import poisson  # pyright: ignore[reportMissingImports]
+import numpy as np  # type: ignore[import-not-found]
+import plotly.express as px  # type: ignore[import-not-found]
+import plotly.graph_objects as go  # type: ignore[import-not-found]
+from scipy.stats import poisson  # type: ignore[import-not-found]
 import json
 import re
 import time
@@ -130,7 +130,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI TACTICAL CORRECTOR (CON AUTO-RETRY ANTI 429)
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -140,69 +140,109 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     
     prompt = f"""
     Sei un analista tattico quantitativo di calcio.
-    Il nostro algoritmo ha calcolato per la partita '{match_name}' le seguenti probabilità statistiche di base:
-    - Squadra di Casa (1): {p1_math:.1f}%
-    - Pareggio (X): {px_math:.1f}%
-    - Squadra Ospite (2): {p2_math:.1f}%
+    Il nostro algoritmo ha calcolato per la partita '{match_name}' le probabilità statistiche base:
+    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
 
-    Valuta attentamente il contesto reale della sfida:
-    1. Infortuni di titolari chiave, squalifiche o rientri.
-    2. Turnover, stanchezza da impegni ravvicinati nelle coppe o motivazioni di classifica.
-    3. Stato di forma recente e fattore campo.
+    Valuta attentamente infortuni, turnover, stanchezza da coppe, forma e motivazioni.
+    In base alla tua analisi, stabilisci la variazione percentuale (shift) da applicare alle probabilità:
+    - `home_shift`: tra -8.0 e +8.0 per la casa.
+    - `away_shift`: tra -8.0 e +8.0 per l'ospite.
 
-    In base alla tua analisi, stabilisci la variazione percentuale (shift) da applicare alle probabilità di base:
-    - `home_shift`: un numero decimale tra -8.0 e +8.0 per la squadra di casa.
-    - `away_shift`: un numero decimale tra -8.0 e +8.0 per la squadra ospite.
-
-    ATTENZIONE: Se la squadra di casa è sfavorita o in difficoltà, assegna un `home_shift` NEGATIVO (es. -3.5) e un `away_shift` POSITIVO (es. +3.5).
-
-    Rispondi esclusivamente in formato JSON valido usando questa struttura esatta:
+    Rispondi esclusivamente in formato JSON valido con questa struttura:
     {{
         "home_shift": 0.0,
         "away_shift": 0.0,
-        "analisi_sintetica": "Inserisci qui l'analisi motivata in 3 frasi..."
+        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi..."
     }}
     """
     
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "response_mime_type": "application/json"
-        }
+        "generationConfig": {"response_mime_type": "application/json"}
     }
     
-    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
-    errori_log = []
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key_clean}"
     
-    for mod in modelli:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
-        
-        for intento in range(2):
-            try:
-                response = requests.post(url, json=payload, timeout=25)
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'candidates' in data and len(data['candidates']) > 0:
-                        text_res = data['candidates'][0]['content']['parts'][0]['text']
-                        
-                        json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
-                        if json_match:
-                            parsed = json.loads(json_match.group(0))
-                            return parsed, None
-                        else:
-                            parsed = json.loads(text_res)
-                            return parsed, None
-                elif response.status_code == 429:
-                    time.sleep(2.5)
-                    continue
-                else:
-                    errori_log.append(f"{mod} ({response.status_code})")
-                    break
-            except Exception as e:
-                errori_log.append(f"{mod} err: {str(e)}")
-                break
+    for intento in range(3):
+        try:
+            response = requests.post(url, json=payload, timeout=25)
+            if response.status_code == 200:
+                data = response.json()
+                if 'candidates' in data and len(data['candidates']) > 0:
+                    text_res = data['candidates'][0]['content']['parts'][0]['text']
+                    json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
+                    if json_match:
+                        return json.loads(json_match.group(0)), None
+                    return json.loads(text_res), None
+            elif response.status_code == 429:
+                time.sleep(4)
+                continue
+            else:
+                return None, f"Errore Gemini ({response.status_code})"
+        except Exception as e:
+            return None, f"Errore connessione: {str(e)}"
 
-    return None, f"⚠️ Quota API temporaneamente satura. Riprova tra poco: {' | '.join(errori_log)}"
+    return None, "⚠️ Quota API temporaneamente satura. Riprova tra qualche secondo."
+
+# ---------------------------------------------------------
+# GEMINI BATCH CORRECTOR (1 SOLA CHIAMATA PER TUTTE LE PARTITE)
+# ---------------------------------------------------------
+def studio_tattico_in_blocco_batch(lista_partite, key):
+    if not key:
+        return None, "⚠️ Nessuna chiave GEMINI_API_KEY nei Secrets."
+
+    key_clean = key.strip().replace('"', '').replace("'", "")
+    
+    info_txt = ""
+    for idx, p in enumerate(lista_partite, 1):
+        info_txt += f"{idx}. {p['match']} -> 1: {p['p1']:.1f}%, X: {p['px']:.1f}%, 2: {p['p2']:.1f}%\n"
+
+    prompt = f"""
+    Sei un analista tattico quantitativo di calcio.
+    Analizza il contesto di ciascuna delle seguenti partite:
+
+    {info_txt}
+
+    Per OGNUNA delle partite, valuta infortuni, turnover e motivazioni, calcolando uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e per l'Ospite (away_shift da -8.0 a +8.0).
+
+    Rispondi ESCLUSIVAMENTE con una lista JSON contenente un oggetto per ogni partita con questa struttura esatta:
+    [
+      {{
+        "match": "NomeCasa vs NomeOspite",
+        "home_shift": 0.0,
+        "away_shift": 0.0,
+        "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi..."
+      }}
+    ]
+    """
+    
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"response_mime_type": "application/json"}
+    }
+    
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key_clean}"
+    
+    for intento in range(3):
+        try:
+            response = requests.post(url, json=payload, timeout=30)
+            if response.status_code == 200:
+                data = response.json()
+                if 'candidates' in data and len(data['candidates']) > 0:
+                    text_res = data['candidates'][0]['content']['parts'][0]['text']
+                    json_match = re.search(r'\[.*\]', text_res, re.DOTALL)
+                    if json_match:
+                        return json.loads(json_match.group(0)), None
+                    return json.loads(text_res), None
+            elif response.status_code == 429:
+                time.sleep(5)
+                continue
+            else:
+                return None, f"Errore Gemini ({response.status_code})"
+        except Exception as e:
+            return None, f"Errore connessione: {str(e)}"
+
+    return None, "⚠️ Quota API satura. Riprova tra 10 secondi."
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
@@ -361,50 +401,50 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
     st.success(f"**{camp_nome}**: trovate **{len(partite)}** partite nel palinsesto globale")
 
-    # 🧠 PULSANTE ANALISI TATTICA IN BLOCCO
-    if st.button("🧠 Ricalcola TUTTI i match con Gemini AI in Blocco"):
+    # 🧠 PULSANTE ANALISI TATTICA BATCH (1 SOLA CHIAMATA API)
+    if st.button("🧠 Ricalcola TUTTI i match con Gemini AI (Instant Batch)"):
         if not gemini_api_key:
             st.error("Inserisci la chiave GEMINI_API_KEY nei Secrets prima di continuare.")
         else:
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            totale_p = len(partite)
-
-            for idx_p, p in enumerate(partite):
-                match_key = f"gemini_report_{p['match']}"
-                status_text.text(f"Analisi in corso ({idx_p+1}/{totale_p}): {p['match']}...")
+            with st.spinner("Gemini sta analizzando simultaneamente il contesto tattico di tutto il palinsesto..."):
+                batch_res, err = studio_tattico_in_blocco_batch(partite, gemini_api_key)
                 
-                ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
-                if ai_res:
-                    h_s = ai_res.get("home_shift", 0.0)
-                    a_s = ai_res.get("away_shift", 0.0)
-                    report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
-                                 f"⚡ *Correzione Applicata:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                if batch_res and isinstance(batch_res, list):
+                    res_map = {item.get("match"): item for item in batch_res if isinstance(item, dict)}
                     
-                    st.session_state[match_key] = report_txt
-                    
-                    raw_match = raw_m_dict.get(p['match'])
-                    if raw_match:
-                        (
-                            new_pick, new_perc, new_p1, new_px, new_p2,
-                            new_over, new_under, new_goal, new_ng,
-                            new_matrice
-                        ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
-
-                        casa_team, trasf_team, _ = dettagli[p['match']]
-                        st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
+                    for p in partite:
+                        match_key = f"gemini_report_{p['match']}"
+                        match_info = res_map.get(p['match'])
                         
-                        p['top_pick'] = new_pick
-                        p['top_perc'] = new_perc
-                        p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
-                        p['over'], p['under'] = new_over, new_under
-                        p['goal'], p['no_goal'] = new_goal, new_ng
+                        if match_info:
+                            h_s = match_info.get("home_shift", 0.0)
+                            a_s = match_info.get("away_shift", 0.0)
+                            report_txt = f"🧠 **Studio Tattico AI:**\n{match_info.get('analisi_sintetica', '')}\n\n" \
+                                         f"⚡ *Correzione Applicata:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                            
+                            st.session_state[match_key] = report_txt
+                            
+                            raw_match = raw_m_dict.get(p['match'])
+                            if raw_match:
+                                (
+                                    new_pick, new_perc, new_p1, new_px, new_p2,
+                                    new_over, new_under, new_goal, new_ng,
+                                    new_matrice
+                                ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
 
-                progress_bar.progress((idx_p + 1) / totale_p)
-                time.sleep(1.5)
+                                casa_team, trasf_team, _ = dettagli[p['match']]
+                                st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
+                                
+                                p['top_pick'] = new_pick
+                                p['top_perc'] = new_perc
+                                p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
+                                p['over'], p['under'] = new_over, new_under
+                                p['goal'], p['no_goal'] = new_goal, new_ng
 
-            status_text.success("✅ Analisi in blocco completata con successo per tutte le partite!")
-            st.rerun()
+                    st.success("✅ Analisi completata in un istante per tutte le partite!")
+                    st.rerun()
+                else:
+                    st.error(f"Errore durante l'analisi batch: {err}")
 
     st.markdown("---")
 
@@ -419,7 +459,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
             c2.metric("X", f"{p['px']:.1f}%")
             c3.metric("2", f"{p['p2']:.1f}%")
 
-            # 📊 GRAFICO BARRE PROBABILITÀ 1X2 (PASSATA KEY UNIVOCA)
+            # 📊 GRAFICO BARRE PROBABILITÀ 1X2
             fig_bar = go.Figure(data=[
                 go.Bar(
                     x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
@@ -527,7 +567,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
     if match_scelto:
         casa, trasferta, matrice = dettagli[match_scelto]
         
-        # Mappa di Calore Colorata (Heatmap con key univoca)
         fig_heat = px.imshow(
             matrice,
             labels=dict(x=f"Gol {trasferta}", y=f"Gol {casa}", color="Probabilità %"),
