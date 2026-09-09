@@ -1,26 +1,19 @@
-# pyright: reportMissingImports=false
-
-try:
-    import streamlit as st
-    import requests
-    import numpy as np
-    import plotly.express as px
-    import plotly.graph_objects as go
-    from scipy.stats import poisson
-    import json
-    import re
-    import time
-    from datetime import datetime
-except ImportError as exc:
-    raise ImportError(
-        "Missing required runtime dependencies. Install with: pip install streamlit requests numpy plotly scipy"
-    ) from exc
+import streamlit as st  # type: ignore[import-not-found]
+import requests
+import numpy as np  # type: ignore[import-not-found]
+import plotly.express as px  # type: ignore[import-not-found]
+import plotly.graph_objects as go  # type: ignore[import-not-found]
+from scipy.stats import poisson  # type: ignore[import-not-found]
+import json
+import re
+import time
+from datetime import datetime
 
 # ---------------------------------------------------------
-# CONFIGURAZIONE PAGINA & CSS AVANZATO DARK PREMIUM
+# CONFIGURAZIONE PAGINA & CSS STILE EMERALD PITCH
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Football AI Match Analyzer Pro",
+    page_title="Football AI Pro",
     page_icon="⚽",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -28,60 +21,60 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* Importazione font moderni */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif;
+        font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* Sfondo globale dark sfumato */
+    /* Sfondo scuro toni verde pino / lavagna */
     .stApp {
-        background: linear-gradient(135deg, #0b0f19 0%, #111827 50%, #0b0f19 100%);
-        color: #f3f4f6;
+        background: linear-gradient(145deg, #06110d 0%, #0c1a14 50%, #06110d 100%);
+        color: #ecfdf5;
     }
 
-    /* Modifica container centrale */
     .block-container {
-        padding-top: 1.8rem;
+        padding-top: 2rem;
         padding-bottom: 3rem;
         max-width: 760px;
     }
 
-    /* Header e Titolo Fluo */
+    /* Titolo Stile Emerald Glow */
     .main-title {
-        font-size: 2.2rem;
+        font-size: 2.3rem;
         font-weight: 800;
-        background: linear-gradient(90deg, #38bdf8 0%, #818cf8 50%, #c084fc 100%);
+        background: linear-gradient(90deg, #10b981 0%, #34d399 50%, #a7f3d0 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         text-align: center;
+        letter-spacing: -0.5px;
         margin-bottom: 0.2rem;
     }
 
     .sub-title {
-        font-size: 0.9rem;
-        color: #9ca3af;
+        font-size: 0.88rem;
+        color: #6ee7b7;
         text-align: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.8rem;
         font-weight: 500;
+        opacity: 0.85;
     }
 
-    /* Card Espandibili Stilizzate */
+    /* Card Espandibili */
     div[data-testid="stExpander"] {
-        background: rgba(30, 41, 59, 0.7) !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-radius: 12px !important;
-        backdrop-filter: blur(10px);
+        background: rgba(15, 31, 24, 0.75) !important;
+        border: 1px solid rgba(16, 185, 129, 0.2) !important;
+        border-radius: 14px !important;
+        backdrop-filter: blur(12px);
         margin-bottom: 1rem !important;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
 
-    /* Metric Box personalizzati */
+    /* Metric Box */
     div[data-testid="stMetricValue"] {
-        font-size: 1.15rem !important;
+        font-size: 1.2rem !important;
         font-weight: 700 !important;
-        color: #38bdf8 !important;
+        color: #34d399 !important;
     }
 
     div[data-testid="stMetricLabel"] {
@@ -91,53 +84,47 @@ st.markdown("""
         text-transform: uppercase;
     }
 
-    /* Pulsanti con gradiente e glow */
+    /* Bottoni Gradiente Verde Emerald */
     .stButton>button {
         width: 100%;
-        background: linear-gradient(90deg, #2563eb 0%, #1d4ed8 100%);
+        background: linear-gradient(90deg, #059669 0%, #10b981 100%);
         color: #ffffff;
         font-size: 15px;
         font-weight: 700;
         border: none;
         border-radius: 10px;
-        padding: 0.6em 1em;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+        padding: 0.65em 1em;
+        transition: all 0.25s ease;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
     }
 
     .stButton>button:hover {
-        background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
-        box-shadow: 0 6px 18px rgba(59, 130, 246, 0.5);
+        background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+        box-shadow: 0 6px 20px rgba(52, 211, 153, 0.4);
         transform: translateY(-1px);
     }
 
-    /* Badge Esito Consigliato */
+    /* Badge Pick */
     .badge-pick {
-        background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+        background: linear-gradient(90deg, #059669 0%, #10b981 100%);
         color: white;
         padding: 4px 12px;
         border-radius: 20px;
         font-weight: 700;
         font-size: 0.85rem;
         display: inline-block;
-        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+        box-shadow: 0 2px 10px rgba(16, 185, 129, 0.3);
     }
 
     .badge-league {
-        background: rgba(255, 255, 255, 0.1);
-        color: #e5e7eb;
+        background: rgba(52, 211, 153, 0.12);
+        color: #a7f3d0;
+        border: 1px solid rgba(52, 211, 153, 0.25);
         padding: 3px 8px;
         border-radius: 6px;
         font-size: 0.75rem;
         font-weight: 600;
         margin-right: 6px;
-    }
-
-    /* Sfondi per Alert e Info */
-    .stAlert {
-        border-radius: 10px;
-        background-color: rgba(15, 23, 42, 0.9) !important;
-        border: 1px solid rgba(56, 189, 248, 0.3) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -513,7 +500,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
             st.error("❌ Nessuna partita trovata con i filtri selezionati.")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE REDESIGN DARK PREMIUM
+# INTERFACCIA UTENTE REDESIGN EMERALD PITCH
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
@@ -578,8 +565,8 @@ if 'partite' in st.session_state and st.session_state['partite']:
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div>
                 <span class="badge-league">{lega_label}</span>
-                <span style="font-weight: 700; font-size: 1.05rem; color: #f9fafb;">{p['match']}</span>
-                <span style="font-size: 0.8rem; color: #6b7280; margin-left: 8px;">({p['data']})</span>
+                <span style="font-weight: 700; font-size: 1.05rem; color: #f0fdf4;">{p['match']}</span>
+                <span style="font-size: 0.8rem; color: #6ee7b7; margin-left: 8px;">({p['data']})</span>
             </div>
             <div>
                 <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}%</span>
@@ -597,7 +584,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
             c2.metric("X (PAREGGIO)", f"{p['px']:.1f}%")
             c3.metric("2 (OSPITE)", f"{p['p2']:.1f}%")
 
-            # 📊 GRAFICO BARRE DARK STYLED
+            # 📊 GRAFICO BARRE EMERALD STYLED
             fig_bar = go.Figure(data=[
                 go.Bar(
                     x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
@@ -613,7 +600,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                 yaxis=dict(range=[0, 100], showgrid=False),
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#9ca3af')
+                font=dict(color='#a7f3d0')
             )
             st.plotly_chart(fig_bar, use_container_width=True, key=f"bar_{idx}_{p['match']}")
 
@@ -717,7 +704,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
             labels=dict(x=f"Gol {trasferta}", y=f"Gol {casa}", color="Probabilità %"),
             x=['0', '1', '2', '3'],
             y=['0', '1', '2', '3'],
-            color_continuous_scale="Darkmint",
+            color_continuous_scale="Greens",
             text_auto=".1f"
         )
         fig_heat.update_layout(
@@ -725,7 +712,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
             margin=dict(l=10, r=10, t=30, b=10),
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#9ca3af')
+            font=dict(color='#a7f3d0')
         )
         st.plotly_chart(fig_heat, use_container_width=True, key=f"heat_{match_scelto}")
 
