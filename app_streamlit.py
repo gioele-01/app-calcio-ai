@@ -130,7 +130,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (CON AUTO-RETRY)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -163,7 +163,10 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key_clean}"
     
-    for intento in range(3):
+    # Tentativi automatici progressivi (1s, 3s, 5s) se i server sono occupati
+    tempi_attesa = [1.0, 3.0, 5.0]
+    
+    for tentativo, attesa in enumerate(tempi_attesa, 1):
         try:
             response = requests.post(url, json=payload, timeout=25)
             if response.status_code == 200:
@@ -175,15 +178,15 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
                         return json.loads(json_match.group(0)), None
                     return json.loads(text_res), None
             elif response.status_code == 429:
-                time.sleep(4)
+                time.sleep(attesa)
                 continue
             else:
                 return None, f"Errore Gemini ({response.status_code})"
         except Exception as e:
-            return None, f"Errore connessione: {str(e)}"
+            time.sleep(attesa)
+            continue
 
-    return None, "⚠️ Quota API temporaneamente satura. Riprova tra qualche secondo."
-
+    return None, "⚠️ Quota API temporaneamente satura. Attendi 5 secondi e riprova, oppure usa il pulsante 'Instant Batch'."
 # ---------------------------------------------------------
 # GEMINI BATCH CORRECTOR (1 SOLA CHIAMATA PER TUTTE LE PARTITE)
 # ---------------------------------------------------------
