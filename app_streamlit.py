@@ -154,7 +154,7 @@ def scarica_partite_the_odds_api(sport_key, key):
         return None, f"Errore di connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI TACTICAL CORRECTOR (PROMPT DINAMICO SENZA BIAS)
+# GEMINI TACTICAL CORRECTOR (CON AUTO-RETRY SU 429)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -195,32 +195,41 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
         }
     }
     
-    modelli = ["gemini-2.5-flash", "gemini-1.5-pro"]
+    # Modelli attivi e validi su v1beta
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
     errori_log = []
     
     for mod in modelli:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
-        try:
-            response = requests.post(url, json=payload, timeout=25)
-            if response.status_code == 200:
-                data = response.json()
-                if 'candidates' in data and len(data['candidates']) > 0:
-                    text_res = data['candidates'][0]['content']['parts'][0]['text']
-                    
-                    json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
-                    if json_match:
-                        parsed = json.loads(json_match.group(0))
-                        return parsed, None
-                    else:
-                        parsed = json.loads(text_res)
-                        return parsed, None
-            else:
-                errori_log.append(f"{mod} ({response.status_code}): {response.text[:80]}")
-        except Exception as e:
-            errori_log.append(f"{mod} err: {str(e)}")
+        
+        # Tentativi automatici in caso di rate limit (429)
+        for intento in range(2):
+            try:
+                response = requests.post(url, json=payload, timeout=25)
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'candidates' in data and len(data['candidates']) > 0:
+                        text_res = data['candidates'][0]['content']['parts'][0]['text']
+                        
+                        json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
+                        if json_match:
+                            parsed = json.loads(json_match.group(0))
+                            return parsed, None
+                        else:
+                            parsed = json.loads(text_res)
+                            return parsed, None
+                elif response.status_code == 429:
+                    # In caso di quota superata, attende 2.5 secondi e riprova
+                    time.sleep(2.5)
+                    continue
+                else:
+                    errori_log.append(f"{mod} ({response.status_code})")
+                    break
+            except Exception as e:
+                errori_log.append(f"{mod} err: {str(e)}")
+                break
 
-    return None, f"⚠️ Errore Gemini: {' | '.join(errori_log)}"
-
+    return None, f"⚠️ Quota API temporaneamente satura. Riprova tra poco: {' | '.join(errori_log)}"
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
 # ---------------------------------------------------------
