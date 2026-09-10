@@ -294,64 +294,78 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     return None, "⚠️ Quota API temporaneamente satura. Usa il pulsante 'Instant Batch'."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (1 SOLA CHIAMATA)
+# GEMINI BATCH CORRECTOR (CON MINI-BATCH ANTI SATURAZIONE)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
         return None, "⚠️ Nessuna chiave GEMINI_API_KEY nei Secrets."
 
     key_clean = key.strip().replace('"', '').replace("'", "")
-    
-    info_txt = ""
-    for idx, p in enumerate(lista_partite, 1):
-        info_txt += f"{idx}. {p['match']} -> 1: {p['p1']:.1f}%, X: {p['px']:.1f}%, 2: {p['p2']:.1f}%\n"
-
-    prompt = f"""
-    Sei un analista tattico quantitativo di calcio.
-    Analizza il contesto di ciascuna partita:
-
-    {info_txt}
-
-    Per OGNUNA delle partite, calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e l'Ospite (away_shift da -8.0 a +8.0).
-
-    Rispondi ESCLUSIVAMENTE con una lista JSON con questa struttura:
-    [
-      {{
-        "match": "NomeCasa vs NomeOspite",
-        "home_shift": 0.0,
-        "away_shift": 0.0,
-        "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi..."
-      }}
-    ]
-    """
-    
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"response_mime_type": "application/json"}
-    }
-    
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key_clean}"
     
-    for intento in range(3):
-        try:
-            response = requests.post(url, json=payload, timeout=30)
-            if response.status_code == 200:
-                data = response.json()
-                if 'candidates' in data and len(data['candidates']) > 0:
-                    text_res = data['candidates'][0]['content']['parts'][0]['text']
-                    json_match = re.search(r'\[.*\]', text_res, re.DOTALL)
-                    if json_match:
-                        return json.loads(json_match.group(0)), None
-                    return json.loads(text_res), None
-            elif response.status_code == 429:
-                time.sleep(5)
-                continue
-            else:
-                return None, f"Errore Gemini ({response.status_code})"
-        except Exception as e:
-            return None, f"Errore connessione: {str(e)}"
+    # Dividiamo le partite in mini-gruppi di max 4 per non saturare la quota token
+    CHUNK_SIZE = 4
+    risultati_totali = []
+    
+    for i in range(0, len(lista_partite), CHUNK_SIZE):
+        chunk = lista_partite[i:i + CHUNK_SIZE]
+        
+        info_txt = ""
+        for idx, p in enumerate(chunk, 1):
+            info_txt += f"{idx}. {p['match']} -> 1: {p['p1']:.1f}%, X: {p['px']:.1f}%, 2: {p['p2']:.1f}%\n"
 
-    return None, "⚠️ Quota API satura. Riprova tra poco."
+        prompt = f"""
+        Sei un analista tattico quantitativo di calcio.
+        Analizza il contesto delle seguenti partite:
+
+        {info_txt}
+
+        Per OGNUNA delle partite, calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e l'Ospite (away_shift da -8.0 a +8.0).
+
+        Rispondi ESCLUSIVAMENTE con una lista JSON con questa struttura:
+        [
+          {{
+            "match": "NomeCasa vs NomeOspite",
+            "home_shift": 0.0,
+            "away_shift": 0.0,
+            "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi..."
+          }}
+        ]
+        """
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"response_mime_type": "application/json"}
+        }
+        
+        successo_chunk = False
+        for intento in range(3):
+            try:
+                response = requests.post(url, json=payload, timeout=25)
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'candidates' in data and len(data['candidates']) > 0:
+                        text_res = data['candidates'][0]['content']['parts'][0]['text']
+                        json_match = re.search(r'\[.*\]', text_res, re.DOTALL)
+                        if json_match:
+                            parsed_chunk = json.loads(json_match.group(0))
+                            risultati_totali.extend(parsed_chunk)
+                            successo_chunk = True
+                            break
+                elif response.status_code == 429:
+                    time.sleep(6) # Pausa più lunga in caso di quota temporaneamente piena
+                    continue
+            except Exception:
+                time.sleep(3)
+                continue
+        
+        # Pausa di cortesia tra un mini-batch e l'altro per rispettare l'RPM
+        time.sleep(2)
+
+    if risultati_totali:
+        return risultati_totali, None
+    else:
+        return None, "⚠️ Impossibile completare l'analisi batch per saturazione della quota API. Riprova tra 10-15 secondi."
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
