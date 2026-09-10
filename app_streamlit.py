@@ -237,7 +237,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (ANTI 503/429)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -268,42 +268,43 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
         "generationConfig": {"response_mime_type": "application/json"}
     }
     
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key_clean}"
-    tempi_attesa = [1.0, 3.0, 5.0]
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
     
-    for attesa in tempi_attesa:
-        try:
-            response = requests.post(url, json=payload, timeout=25)
-            if response.status_code == 200:
-                data = response.json()
-                if 'candidates' in data and len(data['candidates']) > 0:
-                    text_res = data['candidates'][0]['content']['parts'][0]['text']
-                    json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
-                    if json_match:
-                        return json.loads(json_match.group(0)), None
-                    return json.loads(text_res), None
-            elif response.status_code == 429:
-                time.sleep(attesa)
+    for mod in modelli:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
+        for intento in range(3):
+            try:
+                response = requests.post(url, json=payload, timeout=25)
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'candidates' in data and len(data['candidates']) > 0:
+                        text_res = data['candidates'][0]['content']['parts'][0]['text']
+                        json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
+                        if json_match:
+                            return json.loads(json_match.group(0)), None
+                        return json.loads(text_res), None
+                elif response.status_code in [429, 503]:
+                    # Server occupato o in sovraccarico: attesa progressiva
+                    time.sleep(3.0 * (intento + 1))
+                    continue
+                else:
+                    break
+            except Exception:
+                time.sleep(2.0)
                 continue
-            else:
-                return None, f"Errore Gemini ({response.status_code})"
-        except Exception:
-            time.sleep(attesa)
-            continue
 
-    return None, "⚠️ Quota API temporaneamente satura. Usa il pulsante 'Instant Batch'."
+    return None, "⚠️ I server Gemini sono momentaneamente sovraccarichi (503). Riprova tra qualche secondo."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (CON MINI-BATCH ANTI SATURAZIONE)
+# GEMINI BATCH CORRECTOR (ANTI 503/429)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
         return None, "⚠️ Nessuna chiave GEMINI_API_KEY nei Secrets."
 
     key_clean = key.strip().replace('"', '').replace("'", "")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={key_clean}"
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
     
-    # Dividiamo le partite in mini-gruppi di max 4 per non saturare la quota token
     CHUNK_SIZE = 4
     risultati_totali = []
     
@@ -338,34 +339,40 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
             "generationConfig": {"response_mime_type": "application/json"}
         }
         
-        successo_chunk = False
-        for intento in range(3):
-            try:
-                response = requests.post(url, json=payload, timeout=25)
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'candidates' in data and len(data['candidates']) > 0:
-                        text_res = data['candidates'][0]['content']['parts'][0]['text']
-                        json_match = re.search(r'\[.*\]', text_res, re.DOTALL)
-                        if json_match:
-                            parsed_chunk = json.loads(json_match.group(0))
-                            risultati_totali.extend(parsed_chunk)
-                            successo_chunk = True
-                            break
-                elif response.status_code == 429:
-                    time.sleep(6) # Pausa più lunga in caso di quota temporaneamente piena
+        chunk_successo = False
+        for mod in modelli:
+            if chunk_successo:
+                break
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
+            
+            for intento in range(3):
+                try:
+                    response = requests.post(url, json=payload, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if 'candidates' in data and len(data['candidates']) > 0:
+                            text_res = data['candidates'][0]['content']['parts'][0]['text']
+                            json_match = re.search(r'\[.*\]', text_res, re.DOTALL)
+                            if json_match:
+                                parsed_chunk = json.loads(json_match.group(0))
+                                risultati_totali.extend(parsed_chunk)
+                                chunk_successo = True
+                                break
+                    elif response.status_code in [429, 503]:
+                        time.sleep(4.0 * (intento + 1))
+                        continue
+                    else:
+                        break
+                except Exception:
+                    time.sleep(2.0)
                     continue
-            except Exception:
-                time.sleep(3)
-                continue
         
-        # Pausa di cortesia tra un mini-batch e l'altro per rispettare l'RPM
-        time.sleep(2)
+        time.sleep(1.5)
 
     if risultati_totali:
         return risultati_totali, None
     else:
-        return None, "⚠️ Impossibile completare l'analisi batch per saturazione della quota API. Riprova tra 10-15 secondi."
+        return None, "⚠️ I server Google Gemini sono temporaneamente sovraccarichi. Attendi qualche istante e riprova."
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
