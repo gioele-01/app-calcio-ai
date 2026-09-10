@@ -1,5 +1,6 @@
 import streamlit as st  # type: ignore[import-not-found]
 import requests
+import pandas as pd  # type: ignore[import-not-found]
 import numpy as np  # type: ignore[import-not-found]
 import plotly.express as px  # type: ignore[import-not-found]
 import plotly.graph_objects as go  # type: ignore[import-not-found]
@@ -8,7 +9,6 @@ import json
 import re
 import time
 from datetime import datetime
-
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS STILE EMERALD PITCH
 # ---------------------------------------------------------
@@ -155,7 +155,7 @@ with st.expander("🔑 **Configurazione API Studio**", expanded=not bool(odds_ke
         gemini_api_key = st.text_input("Chiave API (Google Gemini)", type="password")
 
 # ---------------------------------------------------------
-# MAPPATURA CAMPIONATI COMPLETA (THE ODDS API KEYS)
+# MAPPATURA CAMPIONATI COMPLETA
 # ---------------------------------------------------------
 code_map = {
     "🌐 TUTTI I CAMPIONATI PRINCIPALI": {"key": "MULTI", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.52},
@@ -163,46 +163,14 @@ code_map = {
     "🇮🇹 Italia - Serie B": {"key": "soccer_italy_serie_b", "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
     "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Premier League": {"key": "soccer_epl", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
     "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Championship": {"key": "soccer_efl_champ", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {"key": "soccer_england_league1", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.51},
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {"key": "soccer_england_league2", "home_avg": 1.40, "away_avg": 1.15, "btts_base": 0.52},
     "🇪🇸 Spagna - La Liga": {"key": "soccer_spain_la_liga", "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
-    "🇪🇸 Spagna - Segunda Division": {"key": "soccer_spain_segunda_division", "home_avg": 1.25, "away_avg": 0.95, "btts_base": 0.45},
     "🇩🇪 Germania - Bundesliga": {"key": "soccer_germany_bundesliga", "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
-    "🇩🇪 Germania - 2. Bundesliga": {"key": "soccer_germany_bundesliga2", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.57},
-    "🇩🇪 Germania - 3. Liga": {"key": "soccer_germany_liga3", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.54},
     "🇫🇷 Francia - Ligue 1": {"key": "soccer_france_ligue_one", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
-    "🇫🇷 Francia - Ligue 2": {"key": "soccer_france_ligue_two", "home_avg": 1.28, "away_avg": 0.98, "btts_base": 0.46},
     "🇳🇱 Olanda - Eredivisie": {"key": "soccer_netherlands_eredivisie", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
     "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
-    "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
-    "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
-    "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
-    "🇨🇭 Svizzera - Super League": {"key": "soccer_switzerland_superleague", "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
-    "🇩🇰 Danimarca - Superliga": {"key": "soccer_denmark_superliga", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
-    "🇸🇪 Svezia - Allsvenskan": {"key": "soccer_sweden_allsvenskan", "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
-    "🇸🇪 Svezia - Superettan": {"key": "soccer_sweden_superettan", "home_avg": 1.42, "away_avg": 1.15, "btts_base": 0.52},
-    "🇳🇴 Norvegia - Eliteserien": {"key": "soccer_norway_eliteserien", "home_avg": 1.60, "away_avg": 1.28, "btts_base": 0.58},
-    "🇫🇮 Finlandia - Veikkausliiga": {"key": "soccer_finland_veikkausliiga", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.50},
-    "🇵🇱 Polonia - Ekstraklasa": {"key": "soccer_poland_ekstraklasa", "home_avg": 1.40, "away_avg": 1.12, "btts_base": 0.51},
-    "🇹🇷 Turchia - Super League": {"key": "soccer_turkey_super_league", "home_avg": 1.52, "away_avg": 1.20, "btts_base": 0.55},
-    "🇬🇷 Grecia - Super League": {"key": "soccer_greece_super_league", "home_avg": 1.38, "away_avg": 1.02, "btts_base": 0.47},
-    "🇷🇺 Russia - Premier League": {"key": "soccer_russia_premier_league", "home_avg": 1.40, "away_avg": 1.08, "btts_base": 0.49},
-    "🇧🇷 Brasile - Serie A": {"key": "soccer_brazil_campeonato", "home_avg": 1.48, "away_avg": 1.05, "btts_base": 0.48},
-    "🇧🇷 Brasile - Serie B": {"key": "soccer_brazil_serie_b", "home_avg": 1.32, "away_avg": 0.88, "btts_base": 0.42},
-    "🇦🇷 Argentina - Primera Div": {"key": "soccer_argentina_primera_division", "home_avg": 1.25, "away_avg": 0.92, "btts_base": 0.43},
-    "🇨🇱 Cile - Primera Division": {"key": "soccer_chile_campeonato", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.50},
-    "🇲🇽 Messico - Liga MX": {"key": "soccer_mexico_ligamx", "home_avg": 1.48, "away_avg": 1.15, "btts_base": 0.52},
-    "🇺🇸 USA - MLS": {"key": "soccer_usa_mls", "home_avg": 1.62, "away_avg": 1.22, "btts_base": 0.57},
-    "🇯🇵 Giappone - J1 League": {"key": "soccer_japan_j_league", "home_avg": 1.38, "away_avg": 1.15, "btts_base": 0.50},
-    "🇰🇷 Corea del Sud - K League 1": {"key": "soccer_korea_kleague1", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.49},
-    "🇨🇳 Cina - Super League": {"key": "soccer_china_superleague", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
-    "🇦🇺 Australia - A-League": {"key": "soccer_australia_aleague", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.58},
     "🇪🇺 UEFA Champions League": {"key": "soccer_uefa_champs_league", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
-    "🇪🇺 UEFA Champions Qual.": {"key": "soccer_uefa_champs_league_qualification", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
     "🇪🇺 UEFA Europa League": {"key": "soccer_uefa_europa_league", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
-    "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
-    "🌎 Copa Libertadores": {"key": "soccer_conmebol_copa_libertadores", "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
-    "🌎 Copa Sudamericana": {"key": "soccer_conmebol_copa_sudamericana", "home_avg": 1.42, "away_avg": 0.95, "btts_base": 0.45}
+    "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55}
 }
 
 TOP_LEAGUES_KEYS = [
@@ -330,7 +298,7 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     return None, "⚠️ Server Gemini momentaneamente occupati. Usa il pulsante Instant Batch."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (MINI-BATCH CON AUTO-RETRY)
+# GEMINI BATCH CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
@@ -409,7 +377,7 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
         return None, "⚠️ Server Google Gemini temporaneamente occupati. Riprova tra qualche istante."
 
 # ---------------------------------------------------------
-# CALCOLO PROBABILITÀ CON OVER/UNDER 2.5 DINAMICO & ACCURATO
+# CALCOLO PROBABILITÀ E MERCATI ESTESI (O1.5, O2.5, O3.5, U2.5)
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     casa = match['home_team']
@@ -468,22 +436,28 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     lambda_c = max(0.65, gol_attesi_totali * forza_casa)
     lambda_t = max(0.55, gol_attesi_totali * (1.0 - forza_casa))
 
-    matrice_raw = np.zeros((4, 4))
-    for i in range(4):
-        for j in range(4):
+    matrice_raw = np.zeros((5, 5))
+    for i in range(5):
+        for j in range(5):
             matrice_raw[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
             
     matrice = (matrice_raw / np.sum(matrice_raw)) * 100
 
+    # Calcolo dei vari tagli Over/Under dalla matrice
+    p_o15 = float(sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 1))
+    p_o25 = float(sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 2))
+    p_o35 = float(sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 3))
+    p_u25 = 100.0 - p_o25
+
     if prob_over is None:
-        prob_over = float(sum(matrice[i, j] for i in range(4) for j in range(4) if (i + j) > 2))
-        prob_under = 100.0 - prob_over
+        prob_over = p_o25
+        prob_under = p_u25
 
     p_casa_segna = 1.0 - np.exp(-lambda_c)
     p_trasferta_segna = 1.0 - np.exp(-lambda_t)
     
     prob_goal_raw = (p_casa_segna * p_trasferta_segna) * 100
-    prob_goal = float(min(82.0, max(38.0, prob_goal_raw * 0.7 + prob_over * 0.35)))
+    prob_goal = float(min(85.0, max(35.0, prob_goal_raw * 0.7 + prob_over * 0.35)))
     prob_no_goal = 100.0 - prob_goal
 
     tutti_gli_esiti = {
@@ -504,7 +478,16 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     top_pick = max(esiti, key=esiti.get)
     top_perc = esiti[top_pick]
 
-    return top_pick, top_perc, p1_final, px_final, p2_final, prob_over, prob_under, prob_goal, prob_no_goal, matrice
+    metriche_estese = {
+        "1X2": max(p1_final, px_final, p2_final),
+        "BTTS": prob_goal,
+        "O1.5": p_o15,
+        "O2.5": prob_over,
+        "O3.5": p_o35,
+        "U2.5": prob_under
+    }
+
+    return top_pick, top_perc, p1_final, px_final, p2_final, prob_over, prob_under, prob_goal, prob_no_goal, matrice[:4, :4], metriche_estese
 
 # ---------------------------------------------------------
 # EXECUTION ENGINE MULTI-LEGA
@@ -544,7 +527,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                         (
                             top_pick, perc_top, p1, px, p2,
                             p_over, p_under, p_goal, p_ng,
-                            matrice
+                            matrice, m_estese
                         ) = elab_match_odds(m, comp_info)
 
                         if perc_top >= min_confidence:
@@ -556,7 +539,8 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                                 "top_perc": perc_top,
                                 "p1": p1, "px": px, "p2": p2,
                                 "over": p_over, "under": p_under,
-                                "goal": p_goal, "no_goal": p_ng
+                                "goal": p_goal, "no_goal": p_ng,
+                                "m_estese": m_estese
                             })
                             dettagli_matrici[nome_match] = (casa, trasferta, matrice)
                             raw_matches_dict[nome_match] = m
@@ -571,7 +555,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
             st.error("❌ Nessuna partita trovata con i filtri selezionati.")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE REDESIGN EMERALD PITCH
+# INTERFACCIA UTENTE & DASHBOARD DUMBLESCORE STYLE
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
@@ -579,7 +563,46 @@ if 'partite' in st.session_state and st.session_state['partite']:
     raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
 
-    st.markdown(f"### 📊 Palinsesto Analizzato ({len(partite)} Eventi)")
+    # ---------------------------------------------------------
+    # MACRO PERFORMANCE HEATMAP DUMBLESCORE STYLE
+    # ---------------------------------------------------------
+    st.markdown("### 📊 Performance Heatmap per Campionato & Mercato")
+    
+    df_heatmap = []
+    for p in partite:
+        m_e = p.get('m_estese', {})
+        df_heatmap.append({
+            "Campionato": p.get('lega', camp_nome),
+            "1X2": m_e.get("1X2", p['top_perc']),
+            "BTTS": m_e.get("BTTS", p['goal']),
+            "O1.5": m_e.get("O1.5", 70.0),
+            "O2.5": m_e.get("O2.5", p['over']),
+            "O3.5": m_e.get("O3.5", 35.0),
+            "U2.5": m_e.get("U2.5", p['under'])
+        })
+    
+    df_h = pd.DataFrame(df_heatmap)
+    if not df_h.empty:
+        df_h_grouped = df_h.groupby("Campionato").mean()
+        
+        fig_macro_heat = px.imshow(
+            df_h_grouped,
+            labels=dict(x="Mercati", y="Campionati", color="Affidabilità %"),
+            color_continuous_scale="RdYlGn",
+            text_auto=".1f",
+            range_color=[35, 75]
+        )
+        fig_macro_heat.update_layout(
+            height=280,
+            margin=dict(l=10, r=10, t=10, b=10),
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color='#a7f3d0')
+        )
+        st.plotly_chart(fig_macro_heat, use_container_width=True, key="macro_performance_heatmap")
+
+    st.markdown("---")
+    st.markdown(f"### ⚽ Palinsesto Dettagliato ({len(partite)} Eventi)")
 
     # 🧠 PULSANTE ANALISI TATTICA BATCH
     if st.button("⚡ RICALCOLA TUTTI I MATCH CON GEMINI AI (INSTANT BATCH)"):
@@ -609,7 +632,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                                 (
                                     new_pick, new_perc, new_p1, new_px, new_p2,
                                     new_over, new_under, new_goal, new_ng,
-                                    new_matrice
+                                    new_matrice, new_m_estese
                                 ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
 
                                 casa_team, trasf_team, _ = dettagli[p['match']]
@@ -620,6 +643,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                                 p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
                                 p['over'], p['under'] = new_over, new_under
                                 p['goal'], p['no_goal'] = new_goal, new_ng
+                                p['m_estese'] = new_m_estese
 
                     st.success("✅ Analisi in blocco completata per tutte le partite!")
                     st.rerun()
@@ -708,7 +732,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                                 (
                                     new_pick, new_perc, new_p1, new_px, new_p2,
                                     new_over, new_under, new_goal, new_ng,
-                                    new_matrice
+                                    new_matrice, new_m_estese
                                 ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
 
                                 casa_team, trasf_team, _ = dettagli[p['match']]
@@ -719,6 +743,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                                 p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
                                 p['over'], p['under'] = new_over, new_under
                                 p['goal'], p['no_goal'] = new_goal, new_ng
+                                p['m_estese'] = new_m_estese
 
                             st.rerun()
                         else:
@@ -752,7 +777,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
         st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {perc_comb_tot:.1f}%")
 
-        # 📥 PULSANTE DOWNLOAD TXT / TELEGRAM
         st.download_button(
             label="📥 Scarica Schedina pronta per Telegram / WhatsApp (.txt)",
             data=testo_telegram,
