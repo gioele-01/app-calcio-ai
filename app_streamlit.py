@@ -13,7 +13,7 @@ from datetime import datetime
 # CONFIGURAZIONE PAGINA & CSS STILE EMERALD PITCH
 # ---------------------------------------------------------
 st.set_page_config(
-    page_title="Football AI Pro",
+    page_title="Football AI Match Analyzer Pro",
     page_icon="⚽",
     layout="centered",
     initial_sidebar_state="collapsed"
@@ -155,7 +155,7 @@ with st.expander("🔑 **Configurazione API Studio**", expanded=not bool(odds_ke
         gemini_api_key = st.text_input("Chiave API (Google Gemini)", type="password")
 
 # ---------------------------------------------------------
-# MAPPATURA CAMPIONATI (THE ODDS API KEYS)
+# MAPPATURA CAMPIONATI COMPLETA (THE ODDS API KEYS)
 # ---------------------------------------------------------
 code_map = {
     "🌐 TUTTI I CAMPIONATI PRINCIPALI": {"key": "MULTI", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.52},
@@ -163,14 +163,46 @@ code_map = {
     "🇮🇹 Italia - Serie B": {"key": "soccer_italy_serie_b", "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
     "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Premier League": {"key": "soccer_epl", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
     "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Championship": {"key": "soccer_efl_champ", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
+    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {"key": "soccer_england_league1", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.51},
+    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {"key": "soccer_england_league2", "home_avg": 1.40, "away_avg": 1.15, "btts_base": 0.52},
     "🇪🇸 Spagna - La Liga": {"key": "soccer_spain_la_liga", "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
+    "🇪🇸 Spagna - Segunda Division": {"key": "soccer_spain_segunda_division", "home_avg": 1.25, "away_avg": 0.95, "btts_base": 0.45},
     "🇩🇪 Germania - Bundesliga": {"key": "soccer_germany_bundesliga", "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
+    "🇩🇪 Germania - 2. Bundesliga": {"key": "soccer_germany_bundesliga2", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.57},
+    "🇩🇪 Germania - 3. Liga": {"key": "soccer_germany_liga3", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.54},
     "🇫🇷 Francia - Ligue 1": {"key": "soccer_france_ligue_one", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
+    "🇫🇷 Francia - Ligue 2": {"key": "soccer_france_ligue_two", "home_avg": 1.28, "away_avg": 0.98, "btts_base": 0.46},
     "🇳🇱 Olanda - Eredivisie": {"key": "soccer_netherlands_eredivisie", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
     "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+    "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+    "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
+    "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+    "🇨🇭 Svizzera - Super League": {"key": "soccer_switzerland_superleague", "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
+    "🇩🇰 Danimarca - Superliga": {"key": "soccer_denmark_superliga", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
+    "🇸🇪 Svezia - Allsvenskan": {"key": "soccer_sweden_allsvenskan", "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
+    "🇸🇪 Svezia - Superettan": {"key": "soccer_sweden_superettan", "home_avg": 1.42, "away_avg": 1.15, "btts_base": 0.52},
+    "🇳🇴 Norvegia - Eliteserien": {"key": "soccer_norway_eliteserien", "home_avg": 1.60, "away_avg": 1.28, "btts_base": 0.58},
+    "🇫🇮 Finlandia - Veikkausliiga": {"key": "soccer_finland_veikkausliiga", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.50},
+    "🇵🇱 Polonia - Ekstraklasa": {"key": "soccer_poland_ekstraklasa", "home_avg": 1.40, "away_avg": 1.12, "btts_base": 0.51},
+    "🇹🇷 Turchia - Super League": {"key": "soccer_turkey_super_league", "home_avg": 1.52, "away_avg": 1.20, "btts_base": 0.55},
+    "🇬🇷 Grecia - Super League": {"key": "soccer_greece_super_league", "home_avg": 1.38, "away_avg": 1.02, "btts_base": 0.47},
+    "🇷🇺 Russia - Premier League": {"key": "soccer_russia_premier_league", "home_avg": 1.40, "away_avg": 1.08, "btts_base": 0.49},
+    "🇧🇷 Brasile - Serie A": {"key": "soccer_brazil_campeonato", "home_avg": 1.48, "away_avg": 1.05, "btts_base": 0.48},
+    "🇧🇷 Brasile - Serie B": {"key": "soccer_brazil_serie_b", "home_avg": 1.32, "away_avg": 0.88, "btts_base": 0.42},
+    "🇦🇷 Argentina - Primera Div": {"key": "soccer_argentina_primera_division", "home_avg": 1.25, "away_avg": 0.92, "btts_base": 0.43},
+    "🇨🇱 Cile - Primera Division": {"key": "soccer_chile_campeonato", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.50},
+    "🇲🇽 Messico - Liga MX": {"key": "soccer_mexico_ligamx", "home_avg": 1.48, "away_avg": 1.15, "btts_base": 0.52},
+    "🇺🇸 USA - MLS": {"key": "soccer_usa_mls", "home_avg": 1.62, "away_avg": 1.22, "btts_base": 0.57},
+    "🇯🇵 Giappone - J1 League": {"key": "soccer_japan_j_league", "home_avg": 1.38, "away_avg": 1.15, "btts_base": 0.50},
+    "🇰🇷 Corea del Sud - K League 1": {"key": "soccer_korea_kleague1", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.49},
+    "🇨🇳 Cina - Super League": {"key": "soccer_china_superleague", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
+    "🇦🇺 Australia - A-League": {"key": "soccer_australia_aleague", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.58},
     "🇪🇺 UEFA Champions League": {"key": "soccer_uefa_champs_league", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
+    "🇪🇺 UEFA Champions Qual.": {"key": "soccer_uefa_champs_league_qualification", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
     "🇪🇺 UEFA Europa League": {"key": "soccer_uefa_europa_league", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
-    "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55}
+    "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+    "🌎 Copa Libertadores": {"key": "soccer_conmebol_copa_libertadores", "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
+    "🌎 Copa Sudamericana": {"key": "soccer_conmebol_copa_sudamericana", "home_avg": 1.42, "away_avg": 0.95, "btts_base": 0.45}
 }
 
 TOP_LEAGUES_KEYS = [
@@ -179,8 +211,11 @@ TOP_LEAGUES_KEYS = [
     ("🇪🇸 La Liga", "soccer_spain_la_liga"),
     ("🇩🇪 Bundesliga", "soccer_germany_bundesliga"),
     ("🇫🇷 Ligue 1", "soccer_france_ligue_one"),
+    ("🇳🇱 Eredivisie", "soccer_netherlands_eredivisie"),
+    ("🇵🇹 Primeira Liga", "soccer_portugal_primeira_liga"),
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
-    ("🇪🇺 Europa League", "soccer_uefa_europa_league")
+    ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
+    ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league")
 ]
 
 with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
@@ -237,7 +272,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (ANTI 503/429)
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -284,7 +319,6 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
                             return json.loads(json_match.group(0)), None
                         return json.loads(text_res), None
                 elif response.status_code in [429, 503]:
-                    # Server occupato o in sovraccarico: attesa progressiva
                     time.sleep(3.0 * (intento + 1))
                     continue
                 else:
@@ -293,10 +327,10 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
                 time.sleep(2.0)
                 continue
 
-    return None, "⚠️ I server Gemini sono momentaneamente sovraccarichi (503). Riprova tra qualche secondo."
+    return None, "⚠️ Server Gemini momentaneamente occupati. Usa il pulsante Instant Batch."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (ANTI 503/429)
+# GEMINI BATCH CORRECTOR (MINI-BATCH CON AUTO-RETRY)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
@@ -372,17 +406,17 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
     if risultati_totali:
         return risultati_totali, None
     else:
-        return None, "⚠️ I server Google Gemini sono temporaneamente sovraccarichi. Attendi qualche istante e riprova."
+        return None, "⚠️ Server Google Gemini temporaneamente occupati. Riprova tra qualche istante."
 
 # ---------------------------------------------------------
-# CALCOLO PROBABILITÀ CON MODIFICATORE TATTICO AI
+# CALCOLO PROBABILITÀ CON OVER/UNDER 2.5 DINAMICO & ACCURATO
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     casa = match['home_team']
     trasferta = match['away_team']
     
     prob_1, prob_X, prob_2 = 40.0, 30.0, 30.0
-    prob_over, prob_under = 50.0, 50.0
+    prob_over, prob_under = None, None
 
     if match.get('bookmakers'):
         bm = match['bookmakers'][0]
@@ -399,13 +433,22 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
                 prob_2 = (1/q2 / inv_tot) * 100
 
             elif m['key'] == 'totals':
-                outcomes = {o['name']: o['price'] for o in m['outcomes']}
-                q_over = outcomes.get('Over', 1.9)
-                q_under = outcomes.get('Under', 1.9)
+                outcomes = {}
+                for o in m.get('outcomes', []):
+                    name_clean = o['name'].strip()
+                    point = o.get('point', 2.5)
+                    if point == 2.5 or '2.5' in name_clean:
+                        if 'Over' in name_clean:
+                            outcomes['Over'] = o['price']
+                        elif 'Under' in name_clean:
+                            outcomes['Under'] = o['price']
 
-                inv_tot = (1/q_over) + (1/q_under)
-                prob_over = (1/q_over / inv_tot) * 100
-                prob_under = (1/q_under / inv_tot) * 100
+                if 'Over' in outcomes and 'Under' in outcomes:
+                    q_over = outcomes['Over']
+                    q_under = outcomes['Under']
+                    inv_tot = (1/q_over) + (1/q_under)
+                    prob_over = (1/q_over / inv_tot) * 100
+                    prob_under = (1/q_under / inv_tot) * 100
 
     p1_mod = max(5.0, min(85.0, prob_1 + home_shift))
     p2_mod = max(5.0, min(85.0, prob_2 + away_shift))
@@ -416,9 +459,12 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     px_final = (px_mod / tot_mod) * 100
     p2_final = (p2_mod / tot_mod) * 100
 
-    gol_attesi_totali = 1.6 + (prob_over / 100) * 1.6
+    if prob_over is not None:
+        gol_attesi_totali = 1.6 + (prob_over / 100.0) * 1.6
+    else:
+        gol_attesi_totali = comp_info.get("home_avg", 1.4) + comp_info.get("away_avg", 1.1)
+
     forza_casa = p1_final / (p1_final + p2_final + 1e-5)
-    
     lambda_c = max(0.65, gol_attesi_totali * forza_casa)
     lambda_t = max(0.55, gol_attesi_totali * (1.0 - forza_casa))
 
@@ -428,6 +474,10 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
             matrice_raw[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
             
     matrice = (matrice_raw / np.sum(matrice_raw)) * 100
+
+    if prob_over is None:
+        prob_over = float(sum(matrice[i, j] for i in range(4) for j in range(4) if (i + j) > 2))
+        prob_under = 100.0 - prob_over
 
     p_casa_segna = 1.0 - np.exp(-lambda_c)
     p_trasferta_segna = 1.0 - np.exp(-lambda_t)
