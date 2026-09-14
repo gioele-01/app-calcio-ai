@@ -9,6 +9,7 @@ import json
 import re
 import time
 from datetime import datetime
+
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS STILE EMERALD PITCH
 # ---------------------------------------------------------
@@ -72,7 +73,7 @@ st.markdown("""
 
     /* Metric Box */
     div[data-testid="stMetricValue"] {
-        font-size: 1.2rem !important;
+        font-size: 1.15rem !important;
         font-weight: 700 !important;
         color: #34d399 !important;
     }
@@ -163,14 +164,46 @@ code_map = {
     "🇮🇹 Italia - Serie B": {"key": "soccer_italy_serie_b", "home_avg": 1.30, "away_avg": 1.05, "btts_base": 0.48},
     "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Premier League": {"key": "soccer_epl", "home_avg": 1.55, "away_avg": 1.25, "btts_base": 0.56},
     "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - Championship": {"key": "soccer_efl_champ", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.50},
+    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {"key": "soccer_england_league1", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.51},
+    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {"key": "soccer_england_league2", "home_avg": 1.40, "away_avg": 1.15, "btts_base": 0.52},
     "🇪🇸 Spagna - La Liga": {"key": "soccer_spain_la_liga", "home_avg": 1.38, "away_avg": 1.08, "btts_base": 0.49},
+    "🇪🇸 Spagna - Segunda Division": {"key": "soccer_spain_segunda_division", "home_avg": 1.25, "away_avg": 0.95, "btts_base": 0.45},
     "🇩🇪 Germania - Bundesliga": {"key": "soccer_germany_bundesliga", "home_avg": 1.65, "away_avg": 1.35, "btts_base": 0.59},
+    "🇩🇪 Germania - 2. Bundesliga": {"key": "soccer_germany_bundesliga2", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.57},
+    "🇩🇪 Germania - 3. Liga": {"key": "soccer_germany_liga3", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.54},
     "🇫🇷 Francia - Ligue 1": {"key": "soccer_france_ligue_one", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
+    "🇫🇷 Francia - Ligue 2": {"key": "soccer_france_ligue_two", "home_avg": 1.28, "away_avg": 0.98, "btts_base": 0.46},
     "🇳🇱 Olanda - Eredivisie": {"key": "soccer_netherlands_eredivisie", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
     "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+    "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+    "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
+    "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+    "🇨🇭 Svizzera - Super League": {"key": "soccer_switzerland_superleague", "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
+    "🇩🇰 Danimarca - Superliga": {"key": "soccer_denmark_superliga", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
+    "🇸🇪 Svezia - Allsvenskan": {"key": "soccer_sweden_allsvenskan", "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
+    "🇸🇪 Svezia - Superettan": {"key": "soccer_sweden_superettan", "home_avg": 1.42, "away_avg": 1.15, "btts_base": 0.52},
+    "🇳🇴 Norvegia - Eliteserien": {"key": "soccer_norway_eliteserien", "home_avg": 1.60, "away_avg": 1.28, "btts_base": 0.58},
+    "🇫🇮 Finlandia - Veikkausliiga": {"key": "soccer_finland_veikkausliiga", "home_avg": 1.38, "away_avg": 1.12, "btts_base": 0.50},
+    "🇵🇱 Polonia - Ekstraklasa": {"key": "soccer_poland_ekstraklasa", "home_avg": 1.40, "away_avg": 1.12, "btts_base": 0.51},
+    "🇹🇷 Turchia - Super League": {"key": "soccer_turkey_super_league", "home_avg": 1.52, "away_avg": 1.20, "btts_base": 0.55},
+    "🇬🇷 Grecia - Super League": {"key": "soccer_greece_super_league", "home_avg": 1.38, "away_avg": 1.02, "btts_base": 0.47},
+    "🇷🇺 Russia - Premier League": {"key": "soccer_russia_premier_league", "home_avg": 1.40, "away_avg": 1.08, "btts_base": 0.49},
+    "🇧🇷 Brasile - Serie A": {"key": "soccer_brazil_campeonato", "home_avg": 1.48, "away_avg": 1.05, "btts_base": 0.48},
+    "🇧🇷 Brasile - Serie B": {"key": "soccer_brazil_serie_b", "home_avg": 1.32, "away_avg": 0.88, "btts_base": 0.42},
+    "🇦🇷 Argentina - Primera Div": {"key": "soccer_argentina_primera_division", "home_avg": 1.25, "away_avg": 0.92, "btts_base": 0.43},
+    "🇨🇱 Cile - Primera Division": {"key": "soccer_chile_campeonato", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.50},
+    "🇲🇽 Messico - Liga MX": {"key": "soccer_mexico_ligamx", "home_avg": 1.48, "away_avg": 1.15, "btts_base": 0.52},
+    "🇺🇸 USA - MLS": {"key": "soccer_usa_mls", "home_avg": 1.62, "away_avg": 1.22, "btts_base": 0.57},
+    "🇯🇵 Giappone - J1 League": {"key": "soccer_japan_j_league", "home_avg": 1.38, "away_avg": 1.15, "btts_base": 0.50},
+    "🇰🇷 Corea del Sud - K League 1": {"key": "soccer_korea_kleague1", "home_avg": 1.35, "away_avg": 1.10, "btts_base": 0.49},
+    "🇨🇳 Cina - Super League": {"key": "soccer_china_superleague", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
+    "🇦🇺 Australia - A-League": {"key": "soccer_australia_aleague", "home_avg": 1.58, "away_avg": 1.30, "btts_base": 0.58},
     "🇪🇺 UEFA Champions League": {"key": "soccer_uefa_champs_league", "home_avg": 1.60, "away_avg": 1.30, "btts_base": 0.57},
+    "🇪🇺 UEFA Champions Qual.": {"key": "soccer_uefa_champs_league_qualification", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
     "🇪🇺 UEFA Europa League": {"key": "soccer_uefa_europa_league", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
-    "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55}
+    "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+    "🌎 Copa Libertadores": {"key": "soccer_conmebol_copa_libertadores", "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
+    "🌎 Copa Sudamericana": {"key": "soccer_conmebol_copa_sudamericana", "home_avg": 1.42, "away_avg": 0.95, "btts_base": 0.45}
 }
 
 TOP_LEAGUES_KEYS = [
@@ -240,7 +273,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (CON STIMA MARCATORI)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -254,15 +287,21 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
 
     Valuta attentamente infortuni, turnover, stanchezza da coppe e motivazioni.
-    In base alla tua analisi, stabilisci la variazione percentuale (shift) per le due squadre:
-    - `home_shift`: tra -8.0 e +8.0 per la casa.
-    - `away_shift`: tra -8.0 e +8.0 per l'ospite.
+    1. Stabilisci la variazione percentuale (shift) per le due squadre:
+       - `home_shift`: tra -8.0 e +8.0 per la casa.
+       - `away_shift`: tra -8.0 e +8.0 per l'ospite.
+    2. Identifica i 3 marcatori più probabili (Anytime Goalscorer) del match tenendo conto di rigoristi, forma e titolarità.
 
-    Rispondi esclusivamente in formato JSON valido con questa struttura:
+    Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
     {{
         "home_shift": 0.0,
         "away_shift": 0.0,
-        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi..."
+        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi...",
+        "marcatori_consigliati": [
+            {{"giocatore": "Nome Giocatore 1", "squadra": "Casa/Trasferta", "probabilita": "45%"}},
+            {{"giocatore": "Nome Giocatore 2", "squadra": "Casa/Trasferta", "probabilita": "38%"}},
+            {{"giocatore": "Nome Giocatore 3", "squadra": "Casa/Trasferta", "probabilita": "30%"}}
+        ]
     }}
     """
     
@@ -298,7 +337,7 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     return None, "⚠️ Server Gemini momentaneamente occupati. Usa il pulsante Instant Batch."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR
+# GEMINI BATCH CORRECTOR (MINI-BATCH CON MARCATORI)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
@@ -323,7 +362,7 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
 
         {info_txt}
 
-        Per OGNUNA delle partite, calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e l'Ospite (away_shift da -8.0 a +8.0).
+        Per OGNUNA delle partite, calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0), l'Ospite (away_shift da -8.0 a +8.0) ed individua 2 marcatori principali.
 
         Rispondi ESCLUSIVAMENTE con una lista JSON con questa struttura:
         [
@@ -331,7 +370,11 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
             "match": "NomeCasa vs NomeOspite",
             "home_shift": 0.0,
             "away_shift": 0.0,
-            "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi..."
+            "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi...",
+            "marcatori_consigliati": [
+                {{"giocatore": "Nome Giocatore 1", "squadra": "Casa/Trasferta", "probabilita": "42%"}},
+                {{"giocatore": "Nome Giocatore 2", "squadra": "Casa/Trasferta", "probabilita": "35%"}}
+            ]
           }}
         ]
         """
@@ -377,7 +420,7 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
         return None, "⚠️ Server Google Gemini temporaneamente occupati. Riprova tra qualche istante."
 
 # ---------------------------------------------------------
-# CALCOLO PROBABILITÀ E MERCATI ESTESI (O1.5, O2.5, O3.5, U2.5)
+# CALCOLO PROBABILITÀ E MERCATI ESTESI
 # ---------------------------------------------------------
 def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     casa = match['home_team']
@@ -443,7 +486,6 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
             
     matrice = (matrice_raw / np.sum(matrice_raw)) * 100
 
-    # Calcolo dei vari tagli Over/Under dalla matrice
     p_o15 = float(sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 1))
     p_o25 = float(sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 2))
     p_o35 = float(sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 3))
@@ -622,10 +664,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         if match_info:
                             h_s = match_info.get("home_shift", 0.0)
                             a_s = match_info.get("away_shift", 0.0)
-                            report_txt = f"🧠 **Studio Tattico AI:**\n{match_info.get('analisi_sintetica', '')}\n\n" \
-                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
-                            
-                            st.session_state[match_key] = report_txt
+                            st.session_state[match_key] = match_info
                             
                             raw_match = raw_m_dict.get(p['match'])
                             if raw_match:
@@ -710,7 +749,24 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
             st.markdown("---")
             if match_key in st.session_state:
-                st.info(st.session_state[match_key])
+                rep = st.session_state[match_key]
+                
+                # Se il report è in formato dizionario
+                if isinstance(rep, dict):
+                    h_s = rep.get("home_shift", 0.0)
+                    a_s = rep.get("away_shift", 0.0)
+                    st.info(f"🧠 **Studio Tattico AI:**\n{rep.get('analisi_sintetica', '')}\n\n"
+                            f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)")
+                    
+                    marcatori = rep.get('marcatori_consigliati', [])
+                    if marcatori:
+                        st.write("**🎯 MARCATORI PROBABILI (ANYTIME GOALSCORER)**")
+                        cols_m = st.columns(len(marcatori))
+                        for i_m, m_item in enumerate(marcatori):
+                            cols_m[i_m].metric(m_item.get('giocatore', 'N/D'), m_item.get('probabilita', 'N/D'), delta=m_item.get('squadra', ''))
+                else:
+                    st.info(str(rep))
+
                 if st.button("🔄 Ripristina Statistica Base", key=f"reload_{idx}_{p['match']}"):
                     del st.session_state[match_key]
                     st.rerun()
@@ -720,12 +776,10 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
                         
                         if ai_res:
+                            st.session_state[match_key] = ai_res
+                            
                             h_s = ai_res.get("home_shift", 0.0)
                             a_s = ai_res.get("away_shift", 0.0)
-                            report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
-                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
-                            
-                            st.session_state[match_key] = report_txt
                             
                             raw_match = raw_m_dict.get(p['match'])
                             if raw_match:
@@ -749,8 +803,8 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         else:
                             st.error(err)
 
-# ---------------------------------------------------------
-    # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE
+    # ---------------------------------------------------------
+    # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE (FINO A 10 EVENTI)
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎟️ Generatore Schedina Multipla")
