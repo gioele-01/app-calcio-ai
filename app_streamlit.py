@@ -345,73 +345,89 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     return None, "⚠️ Server Gemini momentaneamente occupati. Usa il pulsante Instant Batch."
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (ROSE 2025/2026)
+# GEMINI BATCH CORRECTOR (ROSE AGGIORNATE & ANTI 429/503)
 # ---------------------------------------------------------
-def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
+def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
-        return None, "⚠️ Nessuna chiave GEMINI_API_KEY trovata nei Secrets."
+        return None, "⚠️ Nessuna chiave GEMINI_API_KEY nei Secrets."
 
     key_clean = key.strip().replace('"', '').replace("'", "")
-    
-    squadre = match_name.split(" vs ")
-    casa_name = squadre[0] if len(squadre) > 0 else "Casa"
-    trasf_name = squadre[1] if len(squadre) > 1 else "Trasferta"
-
-    prompt = f"""
-    Sei un analista tattico quantitativo di calcio ed esperto di rose aggiornate alla stagione 2025/2026.
-    Analizza la partita '{match_name}'.
-    Squadra Casa: '{casa_name}'
-    Squadra Ospite: '{trasf_name}'
-
-    REGOLE TATTICHE E MARCATORI (CRITICO):
-    1. Calcola lo shift % per la Casa (home_shift da -8.0 a +8.0) e l'Ospite (away_shift da -8.0 a +8.0).
-    2. Identifica i 3 marcatori più probabili (Anytime Goalscorer) del match.
-       ATTENZIONE: Verifica attentamente che i giocatori appartengano REALTÀ ed ATTUALMENTE alle rose di '{casa_name}' o '{trasf_name}'.
-    NON inventare appartenenze a squadre passate.
-
-    Rispondi esclusivamente in formato JSON valido:
-    {{
-        "home_shift": 0.0,
-        "away_shift": 0.0,
-        "analisi_sintetica": "Breve analisi tattica motivata in 3 frasi...",
-        "marcatori_consigliati": [
-            {{"giocatore": "Nome Giocatore 1", "squadra": "{casa_name}", "probabilita": "42%"}},
-            {{"giocatore": "Nome Giocatore 2", "squadra": "{trasf_name}", "probabilita": "35%"}},
-            {{"giocatore": "Nome Giocatore 3", "squadra": "{casa_name}", "probabilita": "28%"}}
-        ]
-    }}
-    """
-    
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"response_mime_type": "application/json"}
-    }
-    
     modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
     
-    for mod in modelli:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
-        for intento in range(3):
-            try:
-                response = requests.post(url, json=payload, timeout=25)
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'candidates' in data and len(data['candidates']) > 0:
-                        text_res = data['candidates'][0]['content']['parts'][0]['text']
-                        json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
-                        if json_match:
-                            return json.loads(json_match.group(0)), None
-                        return json.loads(text_res), None
-                elif response.status_code in [429, 503]:
-                    time.sleep(3.0 * (intento + 1))
-                    continue
-                else:
-                    break
-            except Exception:
-                time.sleep(2.0)
-                continue
+    CHUNK_SIZE = 4
+    risultati_totali = []
+    
+    for i in range(0, len(lista_partite), CHUNK_SIZE):
+        chunk = lista_partite[i:i + CHUNK_SIZE]
+        
+        info_txt = ""
+        for idx, p in enumerate(chunk, 1):
+            info_txt += f"{idx}. {p['match']} -> 1: {p['p1']:.1f}%, X: {p['px']:.1f}%, 2: {p['p2']:.1f}%\n"
 
-    return None, "⚠️ Server Gemini momentaneamente occupati."
+        prompt = f"""
+        Sei un analista tattico quantitativo di calcio ed esperto di rose aggiornate alla stagione in corso.
+        Analizza le seguenti partite:
+
+        {info_txt}
+
+        REGOLE:
+        1. Calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e per l'Ospite (away_shift da -8.0 a +8.0).
+        2. Inserisci 2 marcatori consigliati assicurandoti che appartengano REALMENTE ai club del match.
+
+        Rispondi ESCLUSIVAMENTE con una lista JSON con questa struttura:
+        [
+          {{
+            "match": "NomeCasa vs NomeOspite",
+            "home_shift": 0.0,
+            "away_shift": 0.0,
+            "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi...",
+            "marcatori_consigliati": [
+                {{"giocatore": "Nome Giocatore 1", "squadra": "Casa", "probabilita": "40%"}},
+                {{"giocatore": "Nome Giocatore 2", "squadra": "Trasferta", "probabilita": "32%"}}
+            ]
+          }}
+        ]
+        """
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"response_mime_type": "application/json"}
+        }
+        
+        chunk_successo = False
+        for mod in modelli:
+            if chunk_successo:
+                break
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
+            
+            for intento in range(3):
+                try:
+                    response = requests.post(url, json=payload, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+                        if 'candidates' in data and len(data['candidates']) > 0:
+                            text_res = data['candidates'][0]['content']['parts'][0]['text']
+                            json_match = re.search(r'\[.*\]', text_res, re.DOTALL)
+                            if json_match:
+                                parsed_chunk = json.loads(json_match.group(0))
+                                risultati_totali.extend(parsed_chunk)
+                                chunk_successo = True
+                                break
+                    elif response.status_code in [429, 503]:
+                        time.sleep(4.0 * (intento + 1))
+                        continue
+                    else:
+                        break
+                except Exception:
+                    time.sleep(2.0)
+                    continue
+        
+        time.sleep(1.5)
+
+    if risultati_totali:
+        return risultati_totali, None
+    else:
+        return None, "⚠️ Server Google Gemini temporaneamente occupati. Riprova tra qualche istante."
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ E MERCATI ESTESI
