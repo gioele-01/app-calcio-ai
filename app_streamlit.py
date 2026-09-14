@@ -749,12 +749,12 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         else:
                             st.error(err)
 
-    # ---------------------------------------------------------
+# ---------------------------------------------------------
     # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎟️ Generatore Schedina Multipla")
-    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=8, value=4)
+    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=10, value=4)
 
     partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
     top_eventi = partite_ordinate[:num_eventi]
