@@ -73,7 +73,7 @@ st.markdown("""
 
     /* Metric Box */
     div[data-testid="stMetricValue"] {
-        font-size: 1.15rem !important;
+        font-size: 1.2rem !important;
         font-weight: 700 !important;
         color: #34d399 !important;
     }
@@ -177,7 +177,7 @@ code_map = {
     "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
     "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
     "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
-    "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+    "🇦TF Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
     "🇨🇭 Svizzera - Super League": {"key": "soccer_switzerland_superleague", "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
     "🇩🇰 Danimarca - Superliga": {"key": "soccer_denmark_superliga", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
     "🇸🇪 Svezia - Allsvenskan": {"key": "soccer_sweden_allsvenskan", "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
@@ -273,7 +273,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (CON RIGORE SULLE ROSE)
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -281,35 +281,21 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
 
     key_clean = key.strip().replace('"', '').replace("'", "")
     
-    # Estrazione dei nomi esatti delle due squadre
-    squadre = match_name.split(" vs ")
-    casa_name = squadre[0] if len(squadre) > 0 else "Casa"
-    trasf_name = squadre[1] if len(squadre) > 1 else "Trasferta"
-
     prompt = f"""
     Sei un analista tattico quantitativo di calcio.
-    Analizza la partita '{match_name}'.
-    Squadra di Casa: '{casa_name}'
-    Squadra Ospite: '{trasf_name}'
-    Probabilità statistiche base 1X2: Casa {p1_math:.1f}%, X {px_math:.1f}%, Ospite {p2_math:.1f}%.
+    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità statistiche base:
+    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
 
-    REGOLE TATTICHE E MARCATORI:
-    1. Stabilisci la variazione percentuale (shift) per le due squadre:
-       - `home_shift`: tra -8.0 e +8.0 per la casa.
-       - `away_shift`: tra -8.0 e +8.0 per l'ospite.
-    2. Identifica i 3 marcatori più probabili (Anytime Goalscorer). 
-       ATTENZIONE CRITICA: Assicurati che i giocatori scelti militino ATTUALMENTE in una delle due squadre ('{casa_name}' o '{trasf_name}'). NON inserire giocatori trasferiti o non tesserati in questi due club.
+    Valuta attentamente infortuni, turnover, stanchezza da coppe e motivazioni.
+    In base alla tua analisi, stabilisci la variazione percentuale (shift) per le due squadre:
+    - `home_shift`: tra -8.0 e +8.0 per la casa.
+    - `away_shift`: tra -8.0 e +8.0 per l'ospite.
 
     Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
     {{
         "home_shift": 0.0,
         "away_shift": 0.0,
-        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi...",
-        "marcatori_consigliati": [
-            {{"giocatore": "Nome Giocatore 1", "squadra": "{casa_name}", "probabilita": "45%"}},
-            {{"giocatore": "Nome Giocatore 2", "squadra": "{trasf_name}", "probabilita": "38%"}},
-            {{"giocatore": "Nome Giocatore 3", "squadra": "{casa_name}", "probabilita": "30%"}}
-        ]
+        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi..."
     }}
     """
     
@@ -345,7 +331,7 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     return None, "⚠️ Server Gemini momentaneamente occupati. Usa il pulsante Instant Batch."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (ROSE AGGIORNATE & ANTI 429/503)
+# GEMINI BATCH CORRECTOR (MINI-BATCH ANTI 429/503)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
@@ -365,14 +351,12 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
             info_txt += f"{idx}. {p['match']} -> 1: {p['p1']:.1f}%, X: {p['px']:.1f}%, 2: {p['p2']:.1f}%\n"
 
         prompt = f"""
-        Sei un analista tattico quantitativo di calcio ed esperto di rose aggiornate alla stagione in corso.
-        Analizza le seguenti partite:
+        Sei un analista tattico quantitativo di calcio.
+        Analizza il contesto delle seguenti partite:
 
         {info_txt}
 
-        REGOLE:
-        1. Calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e per l'Ospite (away_shift da -8.0 a +8.0).
-        2. Inserisci 2 marcatori consigliati assicurandoti che appartengano REALMENTE ai club del match.
+        Per OGNUNA delle partite, calcola uno shift percentuale per la Casa (home_shift da -8.0 a +8.0) e l'Ospite (away_shift da -8.0 a +8.0).
 
         Rispondi ESCLUSIVAMENTE con una lista JSON con questa struttura:
         [
@@ -380,11 +364,7 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
             "match": "NomeCasa vs NomeOspite",
             "home_shift": 0.0,
             "away_shift": 0.0,
-            "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi...",
-            "marcatori_consigliati": [
-                {{"giocatore": "Nome Giocatore 1", "squadra": "Casa", "probabilita": "40%"}},
-                {{"giocatore": "Nome Giocatore 2", "squadra": "Trasferta", "probabilita": "32%"}}
-            ]
+            "analisi_sintetica": "Analisi tattica sintetica in 2-3 frasi..."
           }}
         ]
         """
@@ -674,7 +654,10 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         if match_info:
                             h_s = match_info.get("home_shift", 0.0)
                             a_s = match_info.get("away_shift", 0.0)
-                            st.session_state[match_key] = match_info
+                            report_txt = f"🧠 **Studio Tattico AI:**\n{match_info.get('analisi_sintetica', '')}\n\n" \
+                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                            
+                            st.session_state[match_key] = report_txt
                             
                             raw_match = raw_m_dict.get(p['match'])
                             if raw_match:
@@ -759,24 +742,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
             st.markdown("---")
             if match_key in st.session_state:
-                rep = st.session_state[match_key]
-                
-                # Se il report è in formato dizionario
-                if isinstance(rep, dict):
-                    h_s = rep.get("home_shift", 0.0)
-                    a_s = rep.get("away_shift", 0.0)
-                    st.info(f"🧠 **Studio Tattico AI:**\n{rep.get('analisi_sintetica', '')}\n\n"
-                            f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)")
-                    
-                    marcatori = rep.get('marcatori_consigliati', [])
-                    if marcatori:
-                        st.write("**🎯 MARCATORI PROBABILI (ANYTIME GOALSCORER)**")
-                        cols_m = st.columns(len(marcatori))
-                        for i_m, m_item in enumerate(marcatori):
-                            cols_m[i_m].metric(m_item.get('giocatore', 'N/D'), m_item.get('probabilita', 'N/D'), delta=m_item.get('squadra', ''))
-                else:
-                    st.info(str(rep))
-
+                st.info(st.session_state[match_key])
                 if st.button("🔄 Ripristina Statistica Base", key=f"reload_{idx}_{p['match']}"):
                     del st.session_state[match_key]
                     st.rerun()
@@ -786,10 +752,12 @@ if 'partite' in st.session_state and st.session_state['partite']:
                         ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
                         
                         if ai_res:
-                            st.session_state[match_key] = ai_res
-                            
                             h_s = ai_res.get("home_shift", 0.0)
                             a_s = ai_res.get("away_shift", 0.0)
+                            report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
+                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                            
+                            st.session_state[match_key] = report_txt
                             
                             raw_match = raw_m_dict.get(p['match'])
                             if raw_match:
