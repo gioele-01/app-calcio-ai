@@ -273,7 +273,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (CON STIMA MARCATORI)
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (CON RIGORE SULLE ROSE)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -281,16 +281,24 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
 
     key_clean = key.strip().replace('"', '').replace("'", "")
     
+    # Estrazione dei nomi esatti delle due squadre
+    squadre = match_name.split(" vs ")
+    casa_name = squadre[0] if len(squadre) > 0 else "Casa"
+    trasf_name = squadre[1] if len(squadre) > 1 else "Trasferta"
+
     prompt = f"""
     Sei un analista tattico quantitativo di calcio.
-    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità statistiche base:
-    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
+    Analizza la partita '{match_name}'.
+    Squadra di Casa: '{casa_name}'
+    Squadra Ospite: '{trasf_name}'
+    Probabilità statistiche base 1X2: Casa {p1_math:.1f}%, X {px_math:.1f}%, Ospite {p2_math:.1f}%.
 
-    Valuta attentamente infortuni, turnover, stanchezza da coppe e motivazioni.
+    REGOLE TATTICHE E MARCATORI:
     1. Stabilisci la variazione percentuale (shift) per le due squadre:
        - `home_shift`: tra -8.0 e +8.0 per la casa.
        - `away_shift`: tra -8.0 e +8.0 per l'ospite.
-    2. Identifica i 3 marcatori più probabili (Anytime Goalscorer) del match tenendo conto di rigoristi, forma e titolarità.
+    2. Identifica i 3 marcatori più probabili (Anytime Goalscorer). 
+       ATTENZIONE CRITICA: Assicurati che i giocatori scelti militino ATTUALMENTE in una delle due squadre ('{casa_name}' o '{trasf_name}'). NON inserire giocatori trasferiti o non tesserati in questi due club.
 
     Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
     {{
@@ -298,9 +306,9 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
         "away_shift": 0.0,
         "analisi_sintetica": "Analisi sintetica motivata in 3 frasi...",
         "marcatori_consigliati": [
-            {{"giocatore": "Nome Giocatore 1", "squadra": "Casa/Trasferta", "probabilita": "45%"}},
-            {{"giocatore": "Nome Giocatore 2", "squadra": "Casa/Trasferta", "probabilita": "38%"}},
-            {{"giocatore": "Nome Giocatore 3", "squadra": "Casa/Trasferta", "probabilita": "30%"}}
+            {{"giocatore": "Nome Giocatore 1", "squadra": "{casa_name}", "probabilita": "45%"}},
+            {{"giocatore": "Nome Giocatore 2", "squadra": "{trasf_name}", "probabilita": "38%"}},
+            {{"giocatore": "Nome Giocatore 3", "squadra": "{casa_name}", "probabilita": "30%"}}
         ]
     }}
     """
