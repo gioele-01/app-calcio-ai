@@ -1,15 +1,3 @@
-import streamlit as st  # type: ignore
-import requests  # type: ignore
-import numpy as np  # type: ignore
-import plotly.express as px  # type: ignore
-import plotly.graph_objects as go  # type: ignore
-import pandas as pd  # type: ignore
-from scipy.stats import poisson  # type: ignore
-import json
-import re
-import time
-from datetime import datetime
-
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS STILE EMERALD PITCH
 # ---------------------------------------------------------
@@ -88,21 +76,22 @@ st.markdown("""
     /* Bottoni Gradiente Verde Emerald */
     .stButton>button {
         width: 100%;
-        background: linear-gradient(90deg, #059669 0%, #10b981 100%);
-        color: #ffffff;
-        font-size: 15px;
-        font-weight: 700;
-        border: none;
-        border-radius: 10px;
-        padding: 0.65em 1em;
-        transition: all 0.25s ease;
-        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25);
+        background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
+        color: #ffffff !important;
+        font-size: 15px !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 10px !important;
+        padding: 0.65em 1em !important;
+        transition: all 0.25s ease !important;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25) !important;
     }
 
     .stButton>button:hover {
-        background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
-        box-shadow: 0 6px 20px rgba(52, 211, 153, 0.4);
-        transform: translateY(-1px);
+        background: linear-gradient(90deg, #10b981 0%, #34d399 100%) !important;
+        box-shadow: 0 6px 20px rgba(52, 211, 153, 0.4) !important;
+        transform: translateY(-1px) !important;
+        color: #06110d !important;
     }
 
     /* Badge Pick */
@@ -177,7 +166,7 @@ code_map = {
     "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
     "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
     "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
-    "🇦TF Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+    "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
     "🇨🇭 Svizzera - Super League": {"key": "soccer_switzerland_superleague", "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
     "🇩🇰 Danimarca - Superliga": {"key": "soccer_denmark_superliga", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
     "🇸🇪 Svezia - Allsvenskan": {"key": "soccer_sweden_allsvenskan", "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
@@ -273,7 +262,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (MULTI-FALLBACK)
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
     if not key:
@@ -304,7 +293,7 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
         "generationConfig": {"response_mime_type": "application/json"}
     }
     
-    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
     for mod in modelli:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
@@ -328,17 +317,17 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
                 time.sleep(2.0)
                 continue
 
-    return None, "⚠️ Server Gemini momentaneamente occupati. Usa il pulsante Instant Batch."
+    return None, "⚠️ Server Gemini momentaneamente occupati. Riprova tra poco."
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (MINI-BATCH ANTI 429/503)
+# GEMINI BATCH CORRECTOR (MINI-BATCH CON FALLBACK)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
         return None, "⚠️ Nessuna chiave GEMINI_API_KEY nei Secrets."
 
     key_clean = key.strip().replace('"', '').replace("'", "")
-    modelli = ["gemini-2.5-flash", "gemini-2.0-flash"]
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
     CHUNK_SIZE = 4
     risultati_totali = []
@@ -407,7 +396,7 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
     if risultati_totali:
         return risultati_totali, None
     else:
-        return None, "⚠️ Server Google Gemini temporaneamente occupati. Riprova tra qualche istante."
+        return None, "⚠️ I server di Google Gemini sono temporaneamente carichi. Riprova tra 10-15 secondi."
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ E MERCATI ESTESI
