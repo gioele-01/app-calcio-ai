@@ -274,65 +274,7 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR (MULTI-FALLBACK)
-# ---------------------------------------------------------
-def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
-    if not key:
-        return None, "⚠️ Nessuna chiave GEMINI_API_KEY trovata nei Secrets."
-
-    key_clean = key.strip().replace('"', '').replace("'", "")
-    
-    prompt = f"""
-    Sei un analista tattico quantitativo di calcio.
-    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità statistiche base:
-    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
-
-    Valuta attentamente infortuni, turnover, stanchezza da coppe e motivazioni.
-    In base alla tua analisi, stabilisci la variazione percentuale (shift) per le due squadre:
-    - `home_shift`: tra -8.0 e +8.0 per la casa.
-    - `away_shift`: tra -8.0 e +8.0 per l'ospite.
-
-    Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
-    {{
-        "home_shift": 0.0,
-        "away_shift": 0.0,
-        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi..."
-    }}
-    """
-    
-    payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"response_mime_type": "application/json"}
-    }
-    
-    modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-    
-    for mod in modelli:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
-        for intento in range(3):
-            try:
-                response = requests.post(url, json=payload, timeout=25)
-                if response.status_code == 200:
-                    data = response.json()
-                    if 'candidates' in data and len(data['candidates']) > 0:
-                        text_res = data['candidates'][0]['content']['parts'][0]['text']
-                        json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
-                        if json_match:
-                            return json.loads(json_match.group(0)), None
-                        return json.loads(text_res), None
-                elif response.status_code in [429, 503]:
-                    time.sleep(3.0 * (intento + 1))
-                    continue
-                else:
-                    break
-            except Exception:
-                time.sleep(2.0)
-                continue
-
-    return None, "⚠️ Server Gemini momentaneamente occupati. Riprova tra poco."
-
-# ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (MINI-BATCH CON FALLBACK)
+# GEMINI BATCH CORRECTOR (MINI-BATCH ANTI-RATE-LIMIT)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
@@ -341,7 +283,8 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
     key_clean = key.strip().replace('"', '').replace("'", "")
     modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
-    CHUNK_SIZE = 4
+    # Riduciamo la dimensione del blocco a 2 match per non saturare i token
+    CHUNK_SIZE = 2
     risultati_totali = []
     
     for i in range(0, len(lista_partite), CHUNK_SIZE):
@@ -395,20 +338,22 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
                                 chunk_successo = True
                                 break
                     elif response.status_code in [429, 503]:
-                        time.sleep(4.0 * (intento + 1))
+                        # Pausa progressiva più lunga in caso di limite rateo
+                        time.sleep(5.0 * (intento + 1))
                         continue
                     else:
                         break
                 except Exception:
-                    time.sleep(2.0)
+                    time.sleep(3.0)
                     continue
         
-        time.sleep(1.5)
+        # Pausa di sicurezza tra un batch e l'altro
+        time.sleep(2.5)
 
     if risultati_totali:
         return risultati_totali, None
     else:
-        return None, "⚠️ I server di Google Gemini sono temporaneamente carichi. Riprova tra 10-15 secondi."
+        return None, "⚠️ Quota API temporaneamente satura. Usa il pulsante 'Studio Tattico' sulle singole partite oppure attendi 30 secondi."
 
 # ---------------------------------------------------------
 # CALCOLO PROBABILITÀ E MERCATI ESTESI
