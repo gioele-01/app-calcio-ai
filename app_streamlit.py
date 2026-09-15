@@ -28,7 +28,6 @@ st.markdown("""
         font-family: 'Plus Jakarta Sans', sans-serif;
     }
 
-    /* Sfondo scuro toni verde pino / lavagna */
     .stApp {
         background: linear-gradient(145deg, #06110d 0%, #0c1a14 50%, #06110d 100%);
         color: #ecfdf5;
@@ -40,7 +39,6 @@ st.markdown("""
         max-width: 760px;
     }
 
-    /* Titolo Stile Emerald Glow */
     .main-title {
         font-size: 2.3rem;
         font-weight: 800;
@@ -61,7 +59,6 @@ st.markdown("""
         opacity: 0.85;
     }
 
-    /* Card Espandibili */
     div[data-testid="stExpander"] {
         background: rgba(15, 31, 24, 0.75) !important;
         border: 1px solid rgba(16, 185, 129, 0.2) !important;
@@ -71,7 +68,6 @@ st.markdown("""
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
     }
 
-    /* Metric Box */
     div[data-testid="stMetricValue"] {
         font-size: 1.2rem !important;
         font-weight: 700 !important;
@@ -85,7 +81,6 @@ st.markdown("""
         text-transform: uppercase;
     }
 
-    /* Bottoni Gradiente Verde Emerald */
     .stButton>button {
         width: 100%;
         background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
@@ -106,7 +101,6 @@ st.markdown("""
         color: #06110d !important;
     }
 
-    /* Badge Pick */
     .badge-pick {
         background: linear-gradient(90deg, #059669 0%, #10b981 100%);
         color: white;
@@ -175,7 +169,7 @@ code_map = {
     "🇫🇷 Francia - Ligue 1": {"key": "soccer_france_ligue_one", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
     "🇫🇷 Francia - Ligue 2": {"key": "soccer_france_ligue_two", "home_avg": 1.28, "away_avg": 0.98, "btts_base": 0.46},
     "🇳🇱 Olanda - Eredivisie": {"key": "soccer_netherlands_eredivisie", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
-    "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+    "🇵TU Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
     "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
     "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
     "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
@@ -274,7 +268,65 @@ def scarica_partite_the_odds_api(s_key, key):
         return None, f"Errore connessione: {str(e)}"
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (MINI-BATCH ANTI-RATE-LIMIT)
+# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
+# ---------------------------------------------------------
+def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
+    if not key:
+        return None, "⚠️ Nessuna chiave GEMINI_API_KEY trovata nei Secrets."
+
+    key_clean = key.strip().replace('"', '').replace("'", "")
+    
+    prompt = f"""
+    Sei un analista tattico quantitativo di calcio.
+    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità statistiche base:
+    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
+
+    Valuta attentamente infortuni, turnover, stanchezza da coppe e motivazioni.
+    In base alla tua analisi, stabilisci la variazione percentuale (shift) per le due squadre:
+    - `home_shift`: tra -8.0 e +8.0 per la casa.
+    - `away_shift`: tra -8.0 e +8.0 per l'ospite.
+
+    Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
+    {{
+        "home_shift": 0.0,
+        "away_shift": 0.0,
+        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi..."
+    }}
+    """
+    
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"response_mime_type": "application/json"}
+    }
+    
+    modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    
+    for mod in modelli:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
+        for intento in range(3):
+            try:
+                response = requests.post(url, json=payload, timeout=25)
+                if response.status_code == 200:
+                    data = response.json()
+                    if 'candidates' in data and len(data['candidates']) > 0:
+                        text_res = data['candidates'][0]['content']['parts'][0]['text']
+                        json_match = re.search(r'\{.*\}', text_res, re.DOTALL)
+                        if json_match:
+                            return json.loads(json_match.group(0)), None
+                        return json.loads(text_res), None
+                elif response.status_code in [429, 503]:
+                    time.sleep(3.0 * (intento + 1))
+                    continue
+                else:
+                    break
+            except Exception:
+                time.sleep(2.0)
+                continue
+
+    return None, "⚠️ Server Gemini momentaneamente occupati. Riprova tra poco."
+
+# ---------------------------------------------------------
+# GEMINI BATCH CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
     if not key:
@@ -283,7 +335,6 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
     key_clean = key.strip().replace('"', '').replace("'", "")
     modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
     
-    # Riduciamo la dimensione del blocco a 2 match per non saturare i token
     CHUNK_SIZE = 2
     risultati_totali = []
     
@@ -338,7 +389,6 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
                                 chunk_successo = True
                                 break
                     elif response.status_code in [429, 503]:
-                        # Pausa progressiva più lunga in caso di limite rateo
                         time.sleep(5.0 * (intento + 1))
                         continue
                     else:
@@ -347,7 +397,6 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
                     time.sleep(3.0)
                     continue
         
-        # Pausa di sicurezza tra un batch e l'altro
         time.sleep(2.5)
 
     if risultati_totali:
@@ -541,9 +590,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
     raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
 
-    # ---------------------------------------------------------
-    # MACRO PERFORMANCE HEATMAP DUMBLESCORE STYLE
-    # ---------------------------------------------------------
     st.markdown("### 📊 Performance Heatmap per Campionato & Mercato")
     
     df_heatmap = []
@@ -582,7 +628,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
     st.markdown("---")
     st.markdown(f"### ⚽ Palinsesto Dettagliato ({len(partite)} Eventi)")
 
-    # 🧠 PULSANTE ANALISI TATTICA BATCH
     if st.button("⚡ RICALCOLA TUTTI I MATCH CON GEMINI AI (INSTANT BATCH)"):
         if not gemini_api_key:
             st.error("Inserisci la chiave GEMINI_API_KEY nei Secrets prima di continuare.")
@@ -657,7 +702,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
             c2.metric("X (PAREGGIO)", f"{p['px']:.1f}%")
             c3.metric("2 (OSPITE)", f"{p['p2']:.1f}%")
 
-            # 📊 GRAFICO BARRE EMERALD STYLED
             fig_bar = go.Figure(data=[
                 go.Bar(
                     x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
