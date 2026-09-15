@@ -1,10 +1,10 @@
-import streamlit as st
-import requests
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-import pandas as pd
-from scipy.stats import poisson
+import streamlit as st  # type: ignore
+import requests  # type: ignore
+import numpy as np  # type: ignore
+import plotly.express as px  # type: ignore
+import plotly.graph_objects as go  # type: ignore
+import pandas as pd  # type: ignore
+from scipy.stats import poisson  # type: ignore
 import json
 import re
 import time
