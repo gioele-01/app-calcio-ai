@@ -8,7 +8,7 @@ from scipy.stats import poisson  # type: ignore
 import json
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS STILE EMERALD PITCH
@@ -535,7 +535,7 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     return top_pick, top_perc, p1_final, px_final, p2_final, prob_over, prob_under, prob_goal, prob_no_goal, matrice[:4, :4], metriche_estese
 
 # ---------------------------------------------------------
-# EXECUTION ENGINE MULTI-LEGA
+# EXECUTION ENGINE MULTI-LEGA (CON FILTRO MATCH GIÀ INIZIATI)
 # ---------------------------------------------------------
 if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
     if not api_key:
@@ -544,6 +544,8 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
         partite_analizzate = []
         dettagli_matrici = {}
         raw_matches_dict = {}
+        
+        ora_attuale_utc = datetime.now(timezone.utc)
         oggi_str = datetime.today().strftime('%Y-%m-%d')
 
         if sport_key == "MULTI":
@@ -561,10 +563,14 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                         raw_date = m['commence_time']
                         commence_time = raw_date[:10]
                         
-                        # Parsing Orario per ordinamento cronologico
                         try:
-                            dt_obj = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
-                            orario_str = dt_obj.strftime("%H:%M")
+                            dt_match_utc = datetime.fromisoformat(raw_date.replace('Z', '+00:00'))
+                            
+                            # 🛑 FILTRO MATCH GIÀ INIZIATI / CONCLUSI
+                            if dt_match_utc <= ora_attuale_utc:
+                                continue
+                                
+                            orario_str = dt_match_utc.strftime("%H:%M")
                         except Exception:
                             orario_str = "15:00"
 
@@ -607,7 +613,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
             st.session_state['campionato_corrente'] = campionato_scelto
             st.rerun()
         else:
-            st.error("❌ Nessuna partita trovata con i filtri selezionati.")
+            st.error("❌ Nessuna partita futura trovata con i filtri selezionati.")
 
 # ---------------------------------------------------------
 # INTERFACCIA UTENTE & DASHBOARD DUMBLESCORE STYLE
@@ -872,4 +878,4 @@ if 'partite' in st.session_state and st.session_state['partite']:
         st.plotly_chart(fig_heat, use_container_width=True, key=f"heat_{match_scelto}")
 
 elif 'partite' in st.session_state:
-    st.warning("Nessuna partita trovata con i filtri selezionati.")
+    st.warning("Nessuna partita futura trovata con i filtri selezionati.")
