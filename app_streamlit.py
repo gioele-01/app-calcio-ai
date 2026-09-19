@@ -9,6 +9,18 @@ import json
 import re
 import time
 from datetime import datetime, timezone
+import streamlit as st
+import requests
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
+from scipy.stats import poisson
+import json
+import re
+import time
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 # ---------------------------------------------------------
 # CONFIGURAZIONE PAGINA & CSS STILE EMERALD PITCH
@@ -535,7 +547,7 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
     return top_pick, top_perc, p1_final, px_final, p2_final, prob_over, prob_under, prob_goal, prob_no_goal, matrice[:4, :4], metriche_estese
 
 # ---------------------------------------------------------
-# EXECUTION ENGINE MULTI-LEGA (CON FILTRO MATCH GIÀ INIZIATI)
+# EXECUTION ENGINE MULTI-LEGA (CON FILTRO ORA LOCALE E MATCH FUTURI)
 # ---------------------------------------------------------
 if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
     if not api_key:
@@ -546,7 +558,8 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
         raw_matches_dict = {}
         
         ora_attuale_utc = datetime.now(timezone.utc)
-        oggi_str = datetime.today().strftime('%Y-%m-%d')
+        tz_roma = ZoneInfo("Europe/Rome")
+        oggi_str = datetime.now(tz_roma).strftime('%Y-%m-%d')
 
         if sport_key == "MULTI":
             with st.spinner("Scaricamento palinsesti da tutti i campionati principali..."):
@@ -561,18 +574,22 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                 if all_matches:
                     for m in all_matches:
                         raw_date = m['commence_time']
-                        commence_time = raw_date[:10]
                         
                         try:
+                            # Parse UTC esatto
                             dt_match_utc = datetime.fromisoformat(raw_date.replace('Z', '+00:00'))
                             
-                            # 🛑 FILTRO MATCH GIÀ INIZIATI / CONCLUSI
+                            # 🛑 FILTRO MATCH GIÀ INIZIATI O CONCLUSI
                             if dt_match_utc <= ora_attuale_utc:
                                 continue
                                 
-                            orario_str = dt_match_utc.strftime("%H:%M")
+                            # Converti orario al fuso locale italiano
+                            dt_match_local = dt_match_utc.astimezone(tz_roma)
+                            orario_str = dt_match_local.strftime("%H:%M")
+                            commence_time = dt_match_local.strftime("%Y-%m-%d")
                         except Exception:
                             orario_str = "15:00"
+                            commence_time = raw_date[:10]
 
                         if filtro_data == "Solo Oggi" and commence_time != oggi_str:
                             continue
