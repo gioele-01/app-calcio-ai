@@ -122,6 +122,17 @@ st.markdown("""
         font-weight: 600;
         margin-right: 6px;
     }
+
+    .badge-time {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-right: 6px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -169,7 +180,7 @@ code_map = {
     "🇫🇷 Francia - Ligue 1": {"key": "soccer_france_ligue_one", "home_avg": 1.40, "away_avg": 1.10, "btts_base": 0.51},
     "🇫🇷 Francia - Ligue 2": {"key": "soccer_france_ligue_two", "home_avg": 1.28, "away_avg": 0.98, "btts_base": 0.46},
     "🇳🇱 Olanda - Eredivisie": {"key": "soccer_netherlands_eredivisie", "home_avg": 1.68, "away_avg": 1.32, "btts_base": 0.61},
-    "🇵TU Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
+    "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
     "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
     "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
     "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
@@ -231,6 +242,13 @@ with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
         mercato_preferito = st.selectbox(
             "🎯 Mercato",
             ["Tutti i mercati", "Solo 1X2", "Solo Over / Under", "Solo Goal / No Goal"]
+        )
+
+    col_ord1, col_ord2 = st.columns(2)
+    with col_ord1:
+        modalita_ordinamento = st.selectbox(
+            "📌 Ordina Palinsesto per:",
+            ["Campionato", "Orario di inizio"]
         )
 
     data_selezionata = None
@@ -540,7 +558,15 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
 
                 if all_matches:
                     for m in all_matches:
-                        commence_time = m['commence_time'][:10]
+                        raw_date = m['commence_time']
+                        commence_time = raw_date[:10]
+                        
+                        # Parsing Orario per ordinamento cronologico
+                        try:
+                            dt_obj = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
+                            orario_str = dt_obj.strftime("%H:%M")
+                        except Exception:
+                            orario_str = "15:00"
 
                         if filtro_data == "Solo Oggi" and commence_time != oggi_str:
                             continue
@@ -561,6 +587,8 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                             partite_analizzate.append({
                                 "lega": l_nome,
                                 "data": commence_time,
+                                "orario": orario_str,
+                                "datetime_raw": raw_date,
                                 "match": nome_match,
                                 "top_pick": top_pick,
                                 "top_perc": perc_top,
@@ -589,6 +617,14 @@ if 'partite' in st.session_state and st.session_state['partite']:
     dettagli = st.session_state['dettagli_matrici']
     raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
+
+    # ---------------------------------------------------------
+    # ORDINAMENTO PALINSESTO (PER ORARIO O PER CAMPIONATO)
+    # ---------------------------------------------------------
+    if modalita_ordinamento == "Orario di inizio":
+        partite = sorted(partite, key=lambda x: x.get('datetime_raw', ''))
+    else:
+        partite = sorted(partite, key=lambda x: x.get('lega', ''))
 
     st.markdown("### 📊 Performance Heatmap per Campionato & Mercato")
     
@@ -626,7 +662,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
         st.plotly_chart(fig_macro_heat, use_container_width=True, key="macro_performance_heatmap")
 
     st.markdown("---")
-    st.markdown(f"### ⚽ Palinsesto Dettagliato ({len(partite)} Eventi)")
+    st.markdown(f"### ⚽ Palinsesto Dettagliato ({len(partite)} Eventi — Ordinato per {modalita_ordinamento})")
 
     if st.button("⚡ RICALCOLA TUTTI I MATCH CON GEMINI AI (INSTANT BATCH)"):
         if not gemini_api_key:
@@ -678,13 +714,14 @@ if 'partite' in st.session_state and st.session_state['partite']:
     for idx, p in enumerate(partite):
         match_key = f"gemini_report_{p['match']}"
         lega_label = p.get('lega', camp_nome)
+        orario_label = p.get('orario', '15:00')
         
         header_card = f"""
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div>
                 <span class="badge-league">{lega_label}</span>
+                <span class="badge-time">⏰ {orario_label}</span>
                 <span style="font-weight: 700; font-size: 1.05rem; color: #f0fdf4;">{p['match']}</span>
-                <span style="font-size: 0.8rem; color: #6ee7b7; margin-left: 8px;">({p['data']})</span>
             </div>
             <div>
                 <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}%</span>
@@ -692,7 +729,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
         </div>
         """
         
-        with st.expander(f"⚽ {p['match']} — {p['top_pick']} ({p['top_perc']:.1f}%)", expanded=True):
+        with st.expander(f"⏰ {orario_label} | {p['match']} — {p['top_pick']} ({p['top_perc']:.1f}%)", expanded=True):
             st.markdown(header_card, unsafe_allow_html=True)
             st.write("")
 
@@ -789,9 +826,10 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
         for idx_e, ev in enumerate(top_eventi, 1):
             l_info = f"[{ev.get('lega', camp_nome)}]"
-            linea = f"{idx_e}. {ev['match']} {l_info} ➔ {ev['top_pick']} ({ev['top_perc']:.1f}%)"
+            or_info = f"⏰ {ev.get('orario', '15:00')}"
+            linea = f"{idx_e}. {ev['match']} {l_info} ({or_info}) ➔ {ev['top_pick']} ({ev['top_perc']:.1f}%)"
             st.write(f"**{linea}**")
-            testo_telegram += f"📌 *{ev['match']}* {l_info}\n👉 Esito: *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
+            testo_telegram += f"📌 *{ev['match']}* {l_info} ({or_info})\n👉 Esito: *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
             prob_combinata *= (ev['top_perc'] / 100)
 
         perc_comb_tot = prob_combinata * 100
