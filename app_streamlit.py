@@ -1,10 +1,10 @@
-import streamlit as st  # pyright: ignore[reportMissingImports]
+import streamlit as st
 import requests
-import numpy as np  # pyright: ignore[reportMissingImports]
-import plotly.express as px  # pyright: ignore[reportMissingImports]
-import plotly.graph_objects as go  # pyright: ignore[reportMissingImports]
-import pandas as pd  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
-from scipy.stats import poisson  # pyright: ignore[reportMissingImports]
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
+from scipy.stats import poisson
 import json
 import re
 import time
@@ -135,12 +135,14 @@ st.markdown("""
         margin-right: 6px;
     }
 
-    .scalata-box {
-        background: rgba(16, 185, 129, 0.08);
-        border: 1px dashed rgba(16, 185, 129, 0.3);
-        padding: 12px;
-        border-radius: 10px;
-        margin-bottom: 10px;
+    .scalata-card {
+        background: rgba(15, 31, 24, 0.85);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-left: 5px solid #10b981;
+        padding: 14px;
+        border-radius: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -628,7 +630,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
             st.error("❌ Nessuna partita futura trovata con i filtri selezionati.")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE & DASHBOARD DUMBLESCORE STYLE
+# INTERFACCIA UTENTE CON SCHEDE INTERATTIVE (TABS)
 # ---------------------------------------------------------
 if 'partite' in st.session_state and st.session_state['partite']:
     partite = st.session_state['partite']
@@ -636,279 +638,286 @@ if 'partite' in st.session_state and st.session_state['partite']:
     raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
 
+    # CREAZIONE DELLE TAB PRINCIPALI
+    tab_palinsesto, tab_scalata, tab_multipla = st.tabs([
+        "⚽ Palinsesto & Analisi", 
+        "🚀 Scalata AI (Progressione)", 
+        "🎟️ Multipla Top Pick"
+    ])
+
     # ---------------------------------------------------------
-    # ORDINAMENTO PALINSESTO
+    # TAB 1: PALINSESTO DETTAGLIATO & HEATMAP
     # ---------------------------------------------------------
-    if modalita_ordinamento == "Orario di inizio":
-        partite = sorted(partite, key=lambda x: x.get('datetime_raw', ''))
-    else:
-        partite = sorted(partite, key=lambda x: x.get('lega', ''))
-
-    st.markdown("### 📊 Performance Heatmap per Campionato & Mercato")
-    
-    df_heatmap = []
-    for p in partite:
-        m_e = p.get('m_estese', {})
-        df_heatmap.append({
-            "Campionato": p.get('lega', camp_nome),
-            "1X2": m_e.get("1X2", p['top_perc']),
-            "BTTS": m_e.get("BTTS", p['goal']),
-            "O1.5": m_e.get("O1.5", 70.0),
-            "O2.5": m_e.get("O2.5", p['over']),
-            "O3.5": m_e.get("O3.5", 35.0),
-            "U2.5": m_e.get("U2.5", p['under'])
-        })
-    
-    df_h = pd.DataFrame(df_heatmap)
-    if not df_h.empty:
-        df_h_grouped = df_h.groupby("Campionato").mean()
-        
-        fig_macro_heat = px.imshow(
-            df_h_grouped,
-            labels=dict(x="Mercati", y="Campionati", color="Affidabilità %"),
-            color_continuous_scale="RdYlGn",
-            text_auto=".1f",
-            range_color=[35, 75]
-        )
-        fig_macro_heat.update_layout(
-            height=280,
-            margin=dict(l=10, r=10, t=10, b=10),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color='#a7f3d0')
-        )
-        st.plotly_chart(fig_macro_heat, use_container_width=True, key="macro_performance_heatmap")
-
-    st.markdown("---")
-    st.markdown(f"### ⚽ Palinsesto Dettagliato ({len(partite)} Eventi — Ordinato per {modalita_ordinamento})")
-
-    if st.button("⚡ RICALCOLA TUTTI I MATCH CON GEMINI AI (INSTANT BATCH)"):
-        if not gemini_api_key:
-            st.error("Inserisci la chiave GEMINI_API_KEY nei Secrets prima di continuare.")
+    with tab_palinsesto:
+        if modalita_ordinamento == "Orario di inizio":
+            partite = sorted(partite, key=lambda x: x.get('datetime_raw', ''))
         else:
-            with st.spinner("Gemini sta analizzando il contesto tattico di tutto il palinsesto..."):
-                batch_res, err = studio_tattico_in_blocco_batch(partite, gemini_api_key)
-                
-                if batch_res and isinstance(batch_res, list):
-                    res_map = {item.get("match"): item for item in batch_res if isinstance(item, dict)}
-                    
-                    for p in partite:
-                        match_key = f"gemini_report_{p['match']}"
-                        match_info = res_map.get(p['match'])
-                        
-                        if match_info:
-                            h_s = match_info.get("home_shift", 0.0)
-                            a_s = match_info.get("away_shift", 0.0)
-                            report_txt = f"🧠 **Studio Tattico AI:**\n{match_info.get('analisi_sintetica', '')}\n\n" \
-                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
-                            
-                            st.session_state[match_key] = report_txt
-                            
-                            raw_match = raw_m_dict.get(p['match'])
-                            if raw_match:
-                                (
-                                    new_pick, new_perc, new_p1, new_px, new_p2,
-                                    new_over, new_under, new_goal, new_ng,
-                                    new_matrice, new_m_estese
-                                ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
+            partite = sorted(partite, key=lambda x: x.get('lega', ''))
 
-                                casa_team, trasf_team, _ = dettagli[p['match']]
-                                st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
-                                
-                                p['top_pick'] = new_pick
-                                p['top_perc'] = new_perc
-                                p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
-                                p['over'], p['under'] = new_over, new_under
-                                p['goal'], p['no_goal'] = new_goal, new_ng
-                                p['m_estese'] = new_m_estese
-
-                    st.success("✅ Analisi in blocco completata per tutte le partite!")
-                    st.rerun()
-                else:
-                    st.error(f"Errore durante l'analisi batch: {err}")
-
-    st.markdown("---")
-
-    for idx, p in enumerate(partite):
-        match_key = f"gemini_report_{p['match']}"
-        lega_label = p.get('lega', camp_nome)
-        orario_label = p.get('orario', '15:00')
+        st.markdown("### 📊 Performance Heatmap per Campionato & Mercato")
         
-        header_card = f"""
-        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <div>
-                <span class="badge-league">{lega_label}</span>
-                <span class="badge-time">⏰ {orario_label}</span>
-                <span style="font-weight: 700; font-size: 1.05rem; color: #f0fdf4;">{p['match']}</span>
-            </div>
-            <div>
-                <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}%</span>
-            </div>
-        </div>
-        """
+        df_heatmap = []
+        for p in partite:
+            m_e = p.get('m_estese', {})
+            df_heatmap.append({
+                "Campionato": p.get('lega', camp_nome),
+                "1X2": m_e.get("1X2", p['top_perc']),
+                "BTTS": m_e.get("BTTS", p['goal']),
+                "O1.5": m_e.get("O1.5", 70.0),
+                "O2.5": m_e.get("O2.5", p['over']),
+                "O3.5": m_e.get("O3.5", 35.0),
+                "U2.5": m_e.get("U2.5", p['under'])
+            })
         
-        with st.expander(f"⏰ {orario_label} | {p['match']} — {p['top_pick']} ({p['top_perc']:.1f}%)", expanded=True):
-            st.markdown(header_card, unsafe_allow_html=True)
-            st.write("")
-
-            st.write("**ESITO FINALE (1X2)**")
-            c1, c2, c3 = st.columns(3)
-            c1.metric("1 (CASA)", f"{p['p1']:.1f}%")
-            c2.metric("X (PAREGGIO)", f"{p['px']:.1f}%")
-            c3.metric("2 (OSPITE)", f"{p['p2']:.1f}%")
-
-            fig_bar = go.Figure(data=[
-                go.Bar(
-                    x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
-                    y=[p['p1'], p['px'], p['p2']],
-                    marker_color=['#10b981', '#f59e0b', '#3b82f6'],
-                    text=[f"{p['p1']:.1f}%", f"{p['px']:.1f}%", f"{p['p2']:.1f}%"],
-                    textposition='auto'
-                )
-            ])
-            fig_bar.update_layout(
-                height=200, 
-                margin=dict(l=10, r=10, t=10, b=10), 
-                yaxis=dict(range=[0, 100], showgrid=False),
+        df_h = pd.DataFrame(df_heatmap)
+        if not df_h.empty:
+            df_h_grouped = df_h.groupby("Campionato").mean()
+            
+            fig_macro_heat = px.imshow(
+                df_h_grouped,
+                labels=dict(x="Mercati", y="Campionati", color="Affidabilità %"),
+                color_continuous_scale="RdYlGn",
+                text_auto=".1f",
+                range_color=[35, 75]
+            )
+            fig_macro_heat.update_layout(
+                height=280,
+                margin=dict(l=10, r=10, t=10, b=10),
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 font=dict(color='#a7f3d0')
             )
-            st.plotly_chart(fig_bar, use_container_width=True, key=f"bar_{idx}_{p['match']}")
+            st.plotly_chart(fig_macro_heat, use_container_width=True, key="macro_performance_heatmap")
 
-            st.write("**MERCATI GOL**")
-            m1, m2 = st.columns(2)
-            m1.metric("Over 2.5", f"{p['over']:.1f}%")
-            m2.metric("Under 2.5", f"{p['under']:.1f}%")
+        st.markdown("---")
+        st.markdown(f"### ⚽ Palinsesto Dettagliato ({len(partite)} Eventi)")
 
-            m3, m4 = st.columns(2)
-            m3.metric("Goal", f"{p['goal']:.1f}%")
-            m4.metric("No Goal", f"{p['no_goal']:.1f}%")
-
-            st.markdown("---")
-            if match_key in st.session_state:
-                st.info(st.session_state[match_key])
-                if st.button("🔄 Ripristina Statistica Base", key=f"reload_{idx}_{p['match']}"):
-                    del st.session_state[match_key]
-                    st.rerun()
+        if st.button("⚡ RICALCOLA TUTTI I MATCH CON GEMINI AI (INSTANT BATCH)"):
+            if not gemini_api_key:
+                st.error("Inserisci la chiave GEMINI_API_KEY nei Secrets prima di continuare.")
             else:
-                if st.button("🧠 Studio Tattico Gemini & Correzione %", key=f"btn_{idx}_{p['match']}"):
-                    with st.spinner("Gemini sta analizzando notizie e formazioni..."):
-                        ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
+                with st.spinner("Gemini sta analizzando il contesto tattico di tutto il palinsesto..."):
+                    batch_res, err = studio_tattico_in_blocco_batch(partite, gemini_api_key)
+                    
+                    if batch_res and isinstance(batch_res, list):
+                        res_map = {item.get("match"): item for item in batch_res if isinstance(item, dict)}
                         
-                        if ai_res:
-                            h_s = ai_res.get("home_shift", 0.0)
-                            a_s = ai_res.get("away_shift", 0.0)
-                            report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
-                                         f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                        for p in partite:
+                            match_key = f"gemini_report_{p['match']}"
+                            match_info = res_map.get(p['match'])
                             
-                            st.session_state[match_key] = report_txt
-                            
-                            raw_match = raw_m_dict.get(p['match'])
-                            if raw_match:
-                                (
-                                    new_pick, new_perc, new_p1, new_px, new_p2,
-                                    new_over, new_under, new_goal, new_ng,
-                                    new_matrice, new_m_estese
-                                ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
-
-                                casa_team, trasf_team, _ = dettagli[p['match']]
-                                st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
+                            if match_info:
+                                h_s = match_info.get("home_shift", 0.0)
+                                a_s = match_info.get("away_shift", 0.0)
+                                report_txt = f"🧠 **Studio Tattico AI:**\n{match_info.get('analisi_sintetica', '')}\n\n" \
+                                             f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
                                 
-                                p['top_pick'] = new_pick
-                                p['top_perc'] = new_perc
-                                p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
-                                p['over'], p['under'] = new_over, new_under
-                                p['goal'], p['no_goal'] = new_goal, new_ng
-                                p['m_estese'] = new_m_estese
+                                st.session_state[match_key] = report_txt
+                                
+                                raw_match = raw_m_dict.get(p['match'])
+                                if raw_match:
+                                    (
+                                        new_pick, new_perc, new_p1, new_px, new_p2,
+                                        new_over, new_under, new_goal, new_ng,
+                                        new_matrice, new_m_estese
+                                    ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
 
-                            st.rerun()
-                        else:
-                            st.error(err)
+                                    casa_team, trasf_team, _ = dettagli[p['match']]
+                                    st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
+                                    
+                                    p['top_pick'] = new_pick
+                                    p['top_perc'] = new_perc
+                                    p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
+                                    p['over'], p['under'] = new_over, new_under
+                                    p['goal'], p['no_goal'] = new_goal, new_ng
+                                    p['m_estese'] = new_m_estese
 
-    # ---------------------------------------------------------
-    # GENERATORE SCALATA AI (PROGRESSIONE CASSA AD ALTA AFFIDABILITÀ)
-    # ---------------------------------------------------------
-    st.markdown("---")
-    st.subheader("🚀 Algoritmo Scalata AI (Progressione Cassa)")
-    
-    col_sc1, col_sc2 = st.columns(2)
-    with col_sc1:
-        budget_totale = st.number_input("Budget Totale (€)", min_value=10.0, max_value=1000.0, value=100.0, step=10.0)
-    with col_sc2:
-        num_vite = st.number_input("Numero di Vite", min_value=1, max_value=5, value=3)
-        
-    num_step = st.slider("Numero di Step della Scalata:", min_value=3, max_value=8, value=5)
+                        st.success("✅ Analisi in blocco completata per tutte le partite!")
+                        st.rerun()
+                    else:
+                        st.error(f"Errore durante l'analisi batch: {err}")
 
-    if st.button("📈 CALCOLA PIANO DI SCALATA AI"):
-        # Ordiniamo le partite in ordine cronologico esatto
-        partite_cronologiche = sorted(st.session_state['partite'], key=lambda x: x.get('datetime_raw', ''))
-        
-        # Filtriamo solo quelle ad alta confidenza (top_perc >= 60%)
-        partite_scalata = [p for p in partite_cronologiche if p['top_perc'] >= 60.0][:num_step]
+        st.markdown("---")
 
-        if len(partite_scalata) < num_step:
-            st.warning(f"Trovate solo {len(partite_scalata)} partite ad alta confidenza per la scalata. Riduci il numero di step o la confidenza minima nei filtri.")
-        else:
-            cassa_singola_vita = budget_totale / num_vite
-            st.info(f"💰 **Cassa per tentativo (1 Vita):** {cassa_singola_vita:.2f}€ ({num_vite} vite totali)")
+        for idx, p in enumerate(partite):
+            match_key = f"gemini_report_{p['match']}"
+            lega_label = p.get('lega', camp_nome)
+            orario_label = p.get('orario', '15:00')
             
-            cassa_corrente = cassa_singola_vita
-            st.markdown("### 📋 Tabella Marcia della Scalata:")
-            
-            for step_i, match_s in enumerate(partite_scalata, 1):
-                # Stima quota indicativa dalla percentuale di confidenza
-                quota_stimata = round(100.0 / match_s['top_perc'], 2)
-                vincita_step = cassa_corrente * quota_stimata
-                
-                st.markdown(f"""
-                <div class="scalata-box">
-                    <strong>STEP {step_i}</strong> | ⏰ {match_s.get('orario', '15:00')} - [{match_s.get('lega', '')}]<br>
-                    ⚽ <strong>{match_s['match']}</strong> ➔ <strong>{match_s['top_pick']}</strong> (Confidenza: {match_s['top_perc']:.1f}%)<br>
-                    💵 Puntata: <strong>{cassa_corrente:.2f}€</strong> @{quota_stimata} ➔ Vincita Potenziale: <strong style="color: #34d399;">{vincita_step:.2f}€</strong>
+            header_card = f"""
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div>
+                    <span class="badge-league">{lega_label}</span>
+                    <span class="badge-time">⏰ {orario_label}</span>
+                    <span style="font-weight: 700; font-size: 1.05rem; color: #f0fdf4;">{p['match']}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                <div>
+                    <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}%</span>
+                </div>
+            </div>
+            """
+            
+            with st.expander(f"⏰ {orario_label} | {p['match']} — {p['top_pick']} ({p['top_perc']:.1f}%)", expanded=True):
+                st.markdown(header_card, unsafe_allow_html=True)
+                st.write("")
+
+                st.write("**ESITO FINALE (1X2)**")
+                c1, c2, c3 = st.columns(3)
+                c1.metric("1 (CASA)", f"{p['p1']:.1f}%")
+                c2.metric("X (PAREGGIO)", f"{p['px']:.1f}%")
+                c3.metric("2 (OSPITE)", f"{p['p2']:.1f}%")
+
+                fig_bar = go.Figure(data=[
+                    go.Bar(
+                        x=['Casa (1)', 'Pareggio (X)', 'Ospite (2)'], 
+                        y=[p['p1'], p['px'], p['p2']],
+                        marker_color=['#10b981', '#f59e0b', '#3b82f6'],
+                        text=[f"{p['p1']:.1f}%", f"{p['px']:.1f}%", f"{p['p2']:.1f}%"],
+                        textposition='auto'
+                    )
+                ])
+                fig_bar.update_layout(
+                    height=200, 
+                    margin=dict(l=10, r=10, t=10, b=10), 
+                    yaxis=dict(range=[0, 100], showgrid=False),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#a7f3d0')
+                )
+                st.plotly_chart(fig_bar, use_container_width=True, key=f"bar_{idx}_{p['match']}")
+
+                st.write("**MERCATI GOL**")
+                m1, m2 = st.columns(2)
+                m1.metric("Over 2.5", f"{p['over']:.1f}%")
+                m2.metric("Under 2.5", f"{p['under']:.1f}%")
+
+                m3, m4 = st.columns(2)
+                m3.metric("Goal", f"{p['goal']:.1f}%")
+                m4.metric("No Goal", f"{p['no_goal']:.1f}%")
+
+                st.markdown("---")
+                if match_key in st.session_state:
+                    st.info(st.session_state[match_key])
+                    if st.button("🔄 Ripristina Statistica Base", key=f"reload_{idx}_{p['match']}"):
+                        del st.session_state[match_key]
+                        st.rerun()
+                else:
+                    if st.button("🧠 Studio Tattico Gemini & Correzione %", key=f"btn_{idx}_{p['match']}"):
+                        with st.spinner("Gemini sta analizzando notizie e formazioni..."):
+                            ai_res, err = studio_tattico_gemini(p['match'], p['p1'], p['px'], p['p2'], gemini_api_key)
+                            
+                            if ai_res:
+                                h_s = ai_res.get("home_shift", 0.0)
+                                a_s = ai_res.get("away_shift", 0.0)
+                                report_txt = f"🧠 **Studio Tattico AI:**\n{ai_res.get('analisi_sintetica', '')}\n\n" \
+                                             f"⚡ *Shift Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%), Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                                
+                                st.session_state[match_key] = report_txt
+                                
+                                raw_match = raw_m_dict.get(p['match'])
+                                if raw_match:
+                                    (
+                                        new_pick, new_perc, new_p1, new_px, new_p2,
+                                        new_over, new_under, new_goal, new_ng,
+                                        new_matrice, new_m_estese
+                                    ) = elab_match_odds(raw_match, comp_info, home_shift=h_s, away_shift=a_s)
+
+                                    casa_team, trasf_team, _ = dettagli[p['match']]
+                                    st.session_state['dettagli_matrici'][p['match']] = (casa_team, trasf_team, new_matrice)
+                                    
+                                    p['top_pick'] = new_pick
+                                    p['top_perc'] = new_perc
+                                    p['p1'], p['px'], p['p2'] = new_p1, new_px, new_p2
+                                    p['over'], p['under'] = new_over, new_under
+                                    p['goal'], p['no_goal'] = new_goal, new_ng
+                                    p['m_estese'] = new_m_estese
+
+                                st.rerun()
+                            else:
+                                st.error(err)
+
+    # ---------------------------------------------------------
+    # TAB 2: MODULO SCALATA AI (PROGRESSIONE CASSA)
+    # ---------------------------------------------------------
+    with tab_scalata:
+        st.subheader("🚀 Algoritmo Scalata AI (Progressione Cassa)")
+        st.write("La Scalata seleziona i match ad **altissima confidenza** ordinandoli per orario per consentire la re-investizione progressiva delle vincite.")
+        
+        col_sc1, col_sc2 = st.columns(2)
+        with col_sc1:
+            budget_totale = st.number_input("Budget Totale (€)", min_value=10.0, max_value=1000.0, value=100.0, step=10.0)
+        with col_sc2:
+            num_vite = st.number_input("Numero di Vite", min_value=1, max_value=5, value=3)
+            
+        num_step = st.slider("Numero di Step della Scalata:", min_value=3, max_value=8, value=5)
+
+        if st.button("📈 CALCOLA PIANO DI SCALATA AI", key="btn_scalata"):
+            partite_cronologiche = sorted(st.session_state['partite'], key=lambda x: x.get('datetime_raw', ''))
+            partite_scalata = [p for p in partite_cronologiche if p['top_perc'] >= 60.0][:num_step]
+
+            if len(partite_scalata) < num_step:
+                st.warning(f"Trovate solo {len(partite_scalata)} partite ad alta confidenza (≥60%) per la scalata. Prova a ridurre il numero di step.")
+            else:
+                cassa_singola_vita = budget_totale / num_vite
+                st.info(f"💰 **Cassa per tentativo (1 Vita):** {cassa_singola_vita:.2f}€ ({num_vite} vite totali)")
                 
-                cassa_corrente = vincita_step
+                cassa_corrente = cassa_singola_vita
+                st.markdown("### 📋 Marcia di Scalata Consigliata:")
+                
+                for step_i, match_s in enumerate(partite_scalata, 1):
+                    quota_stimata = round(100.0 / match_s['top_perc'], 2)
+                    vincita_step = cassa_corrente * quota_stimata
+                    
+                    st.markdown(f"""
+                    <div class="scalata-card">
+                        <span class="badge-time">⏰ STEP {step_i} — {match_s.get('orario', '15:00')}</span>
+                        <span class="badge-league">{match_s.get('lega', '')}</span><br>
+                        <h4 style="margin: 8px 0 4px 0; color: #f0fdf4;">{match_s['match']}</h4>
+                        👉 Pronostico: <strong>{match_s['top_pick']}</strong> (Confidenza: {match_s['top_perc']:.1f}%)<br>
+                        💵 Puntata: <strong>{cassa_corrente:.2f}€</strong> @{quota_stimata} ➔ Vincita: <strong style="color: #34d399;">{vincita_step:.2f}€</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    cassa_corrente = vincita_step
 
-            moltiplicatore_totale = cassa_corrente / cassa_singola_vita
-            st.success(f"🎯 **Obiettivo Finale Scalata:** {cassa_corrente:.2f}€ (Moltiplicatore Totale: **x{moltiplicatore_totale:.2f}**)")
+                moltiplicatore_totale = cassa_corrente / cassa_singola_vita
+                st.success(f"🎯 **Obiettivo Finale Scalata:** {cassa_corrente:.2f}€ (Moltiplicatore: **x{moltiplicatore_totale:.2f}**)")
 
     # ---------------------------------------------------------
-    # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE
+    # TAB 3: GENERATORE SCHEDINA MULTIPLA
     # ---------------------------------------------------------
-    st.markdown("---")
-    st.subheader("🎟️ Generatore Schedina Multipla")
-    num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=10, value=4)
+    with tab_multipla:
+        st.subheader("🎟️ Generatore Schedina Multipla")
+        num_eventi = st.slider("Numero di eventi per la multipla:", min_value=2, max_value=10, value=4, key="slider_multipla")
 
-    partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
-    top_eventi = partite_ordinate[:num_eventi]
+        partite_ordinate = sorted(st.session_state['partite'], key=lambda x: x['top_perc'], reverse=True)
+        top_eventi = partite_ordinate[:num_eventi]
 
-    if st.button("🎲 GENERA SCHEDINA TOP PICK GLOBALE"):
-        prob_combinata = 1.0
-        st.markdown("### 📜 La tua Schedina Consigliata:")
+        if st.button("🎲 GENERA SCHEDINA TOP PICK GLOBALE", key="btn_multipla"):
+            prob_combinata = 1.0
+            st.markdown("### 📜 La tua Schedina Consigliata:")
 
-        testo_telegram = f"⚽ *SCHEDINA MULTI-CAMPIONATO FOOTBALL AI PRO* ⚽\n📅 Data: {datetime.today().strftime('%d/%m/%Y')}\n\n"
+            testo_telegram = f"⚽ *SCHEDINA MULTI-CAMPIONATO FOOTBALL AI PRO* ⚽\n📅 Data: {datetime.today().strftime('%d/%m/%Y')}\n\n"
 
-        for idx_e, ev in enumerate(top_eventi, 1):
-            l_info = f"[{ev.get('lega', camp_nome)}]"
-            or_info = f"⏰ {ev.get('orario', '15:00')}"
-            linea = f"{idx_e}. {ev['match']} {l_info} ({or_info}) ➔ {ev['top_pick']} ({ev['top_perc']:.1f}%)"
-            st.write(f"**{linea}**")
-            testo_telegram += f"📌 *{ev['match']}* {l_info} ({or_info})\n👉 Esito: *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
-            prob_combinata *= (ev['top_perc'] / 100)
+            for idx_e, ev in enumerate(top_eventi, 1):
+                l_info = f"[{ev.get('lega', camp_nome)}]"
+                or_info = f"⏰ {ev.get('orario', '15:00')}"
+                linea = f"{idx_e}. {ev['match']} {l_info} ({or_info}) ➔ {ev['top_pick']} ({ev['top_perc']:.1f}%)"
+                st.write(f"**{linea}**")
+                testo_telegram += f"📌 *{ev['match']}* {l_info} ({or_info})\n👉 Esito: *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
+                prob_combinata *= (ev['top_perc'] / 100)
 
-        perc_comb_tot = prob_combinata * 100
-        testo_telegram += f"💡 *Probabilità Combinata Modello:* {perc_comb_tot:.1f}%\n🤖 Generato con Football AI Match Analyzer"
+            perc_comb_tot = prob_combinata * 100
+            testo_telegram += f"💡 *Probabilità Combinata Modello:* {perc_comb_tot:.1f}%\n🤖 Generato con Football AI Match Analyzer"
 
-        st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {perc_comb_tot:.1f}%")
+            st.info(f"💡 **Probabilità Stimata Combinata della Multipla:** {perc_comb_tot:.1f}%")
 
-        st.download_button(
-            label="📥 Scarica Schedina pronta per Telegram / WhatsApp (.txt)",
-            data=testo_telegram,
-            file_name=f"schedina_globale_{datetime.today().strftime('%Y%m%d')}.txt",
-            mime="text/plain"
-        )
+            st.download_button(
+                label="📥 Scarica Schedina pronta per Telegram / WhatsApp (.txt)",
+                data=testo_telegram,
+                file_name=f"schedina_globale_{datetime.today().strftime('%Y%m%d')}.txt",
+                mime="text/plain"
+            )
 
     # ---------------------------------------------------------
     # VISUALIZZAZIONE HEATMAP RISULTATI ESATTI
