@@ -194,7 +194,7 @@ code_map = {
     "🇵🇹 Portogallo - Primeira Liga": {"key": "soccer_portugal_primeira_liga", "home_avg": 1.45, "away_avg": 1.18, "btts_base": 0.53},
     "🇧🇪 Belgio - First Div": {"key": "soccer_belgium_first_div", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
     "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {"key": "soccer_spl", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.51},
-    "🇦🇹 Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
+    "🇦TF Austria - Bundesliga": {"key": "soccer_austria_bundesliga", "home_avg": 1.50, "away_avg": 1.25, "btts_base": 0.54},
     "🇨🇭 Svizzera - Super League": {"key": "soccer_switzerland_superleague", "home_avg": 1.55, "away_avg": 1.28, "btts_base": 0.56},
     "🇩🇰 Danimarca - Superliga": {"key": "soccer_denmark_superliga", "home_avg": 1.45, "away_avg": 1.20, "btts_base": 0.53},
     "🇸🇪 Svezia - Allsvenskan": {"key": "soccer_sweden_allsvenskan", "home_avg": 1.48, "away_avg": 1.18, "btts_base": 0.53},
@@ -220,6 +220,7 @@ code_map = {
     "🇪🇺 UEFA Europa League": {"key": "soccer_uefa_europa_league", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
     "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
     "🇪🇺 UEFA Nations League": {"key": "soccer_uefa_nations_league", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.52},
+    "🌍 Coppa d'Africa (AFCON)": {"key": "soccer_africa_cup_of_nations", "home_avg": 1.30, "away_avg": 0.95, "btts_base": 0.44},
     "🌎 Copa Libertadores": {"key": "soccer_conmebol_copa_libertadores", "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
     "🌎 Copa Sudamericana": {"key": "soccer_conmebol_copa_sudamericana", "home_avg": 1.42, "away_avg": 0.95, "btts_base": 0.45}
 }
@@ -235,7 +236,8 @@ TOP_LEAGUES_KEYS = [
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
-    ("🇪🇺 Nations League", "soccer_uefa_nations_league")
+    ("🇪🇺 Nations League", "soccer_uefa_nations_league"),
+    ("🌍 Coppa d'Africa", "soccer_africa_cup_of_nations")
 ]
 
 with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
@@ -274,7 +276,7 @@ with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
         "⚡ Confidenza minima (%)", 
         min_value=50, 
         max_value=90, 
-        value=55, 
+        value=50, 
         step=5
     )
 
@@ -629,7 +631,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
             st.session_state['campionato_corrente'] = campionato_scelto
             st.rerun()
         else:
-            st.error("❌ Nessuna partita futura trovata con i filtri selezionati.")
+            st.error("❌ Nessuna partita futura trovata con i filtri selezionati. Se hai scelto 'Solo Oggi', prova a selezionare 'Tutte le prossime'.")
 
 # ---------------------------------------------------------
 # INTERFACCIA UTENTE CON SCHEDE INTERATTIVE (TABS)
@@ -854,10 +856,10 @@ if 'partite' in st.session_state and st.session_state['partite']:
 
         if st.button("📈 CALCOLA PIANO DI SCALATA AI", key="btn_scalata"):
             partite_cronologiche = sorted(st.session_state['partite'], key=lambda x: x.get('datetime_raw', ''))
-            partite_scalata = [p for p in partite_cronologiche if p['top_perc'] >= 60.0][:num_step]
+            partite_scalata = [p for p in partite_cronologiche if p['top_perc'] >= 55.0][:num_step]
 
             if len(partite_scalata) < num_step:
-                st.warning(f"Trovate solo {len(partite_scalata)} partite ad alta confidenza (≥60%) per la scalata. Prova a ridurre il numero di step.")
+                st.warning(f"Trovate solo {len(partite_scalata)} partite ad alta confidenza (≥55%) per la scalata. Prova a ridurre il numero di step.")
             else:
                 cassa_singola_vita = budget_totale / num_vite
                 st.info(f"💰 **Cassa per tentativo (1 Vita):** {cassa_singola_vita:.2f}€ ({num_vite} vite totali)")
@@ -871,7 +873,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
                     
                     st.markdown(f"""
                     <div class="scalata-card">
-                        <span class="badge-time">⏰ STEP {step_i} — {match_s.get('orario', '15:00')}</span>
+                        <span class="badge-time">⏰ STEP {step_i} — {match_s.get('orario', '15:00')} ({match_s.get('data', '')})</span>
                         <span class="badge-league">{match_s.get('lega', '')}</span><br>
                         <h4 style="margin: 8px 0 4px 0; color: #f0fdf4;">{match_s['match']}</h4>
                         👉 Pronostico: <strong>{match_s['top_pick']}</strong> (Confidenza: {match_s['top_perc']:.1f}%)<br>
