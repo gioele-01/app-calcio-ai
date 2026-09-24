@@ -1,13 +1,10 @@
-import importlib
-
-# Load Streamlit dynamically so static analyzers do not flag the optional app dependency.
-st = importlib.import_module("streamlit")
+import streamlit as st
 import requests
-import numpy as np  # type: ignore[import-not-found]
-import plotly.express as px  # type: ignore[import-not-found]
-import plotly.graph_objects as go  # type: ignore[import-not-found]
-import pandas as pd  # type: ignore[import-not-found, import-untyped]
-from scipy.stats import poisson  # type: ignore[import-not-found]
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
+from scipy.stats import poisson
 import json
 import re
 import time
@@ -222,6 +219,7 @@ code_map = {
     "🇪🇺 UEFA Champions Qual.": {"key": "soccer_uefa_champs_league_qualification", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.54},
     "🇪🇺 UEFA Europa League": {"key": "soccer_uefa_europa_league", "home_avg": 1.50, "away_avg": 1.20, "btts_base": 0.55},
     "🇪🇺 UEFA Conference League": {"key": "soccer_uefa_europa_conference_league", "home_avg": 1.52, "away_avg": 1.22, "btts_base": 0.55},
+    "🇪🇺 UEFA Nations League": {"key": "soccer_uefa_nations_league", "home_avg": 1.45, "away_avg": 1.15, "btts_base": 0.52},
     "🌎 Copa Libertadores": {"key": "soccer_conmebol_copa_libertadores", "home_avg": 1.45, "away_avg": 0.98, "btts_base": 0.46},
     "🌎 Copa Sudamericana": {"key": "soccer_conmebol_copa_sudamericana", "home_avg": 1.42, "away_avg": 0.95, "btts_base": 0.45}
 }
@@ -236,7 +234,8 @@ TOP_LEAGUES_KEYS = [
     ("🇵🇹 Primeira Liga", "soccer_portugal_primeira_liga"),
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
-    ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league")
+    ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
+    ("🇪🇺 Nations League", "soccer_uefa_nations_league")
 ]
 
 with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
@@ -641,7 +640,6 @@ if 'partite' in st.session_state and st.session_state['partite']:
     raw_m_dict = st.session_state.get('raw_matches', {})
     camp_nome = st.session_state.get('campionato_corrente', '')
 
-    # CREAZIONE DELLE TAB PRINCIPALI
     tab_palinsesto, tab_scalata, tab_multipla = st.tabs([
         "⚽ Palinsesto & Analisi", 
         "🚀 Scalata AI (Progressione)", 
