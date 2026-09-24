@@ -1,10 +1,10 @@
-import streamlit as st  # type: ignore
-import requests  # type: ignore
-import numpy as np  # type: ignore
-import plotly.express as px  # type: ignore
-import plotly.graph_objects as go  # type: ignore
-import pandas as pd  # type: ignore
-from scipy.stats import poisson  # type: ignore
+import streamlit as st  # pyright: ignore[reportMissingImports]
+import requests
+import numpy as np  # pyright: ignore[reportMissingImports]
+import plotly.express as px  # pyright: ignore[reportMissingImports]
+import plotly.graph_objects as go  # pyright: ignore[reportMissingImports]
+import pandas as pd  # pyright: ignore[reportMissingImports, reportMissingModuleSource]
+from scipy.stats import poisson  # pyright: ignore[reportMissingImports]
 import json
 import re
 import time
@@ -133,6 +133,14 @@ st.markdown("""
         font-size: 0.75rem;
         font-weight: 600;
         margin-right: 6px;
+    }
+
+    .scalata-box {
+        background: rgba(16, 185, 129, 0.08);
+        border: 1px dashed rgba(16, 185, 129, 0.3);
+        padding: 12px;
+        border-radius: 10px;
+        margin-bottom: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -565,14 +573,12 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                         raw_date = m['commence_time']
                         
                         try:
-                            # Parse UTC esatto
                             dt_match_utc = datetime.fromisoformat(raw_date.replace('Z', '+00:00'))
                             
                             # 🛑 FILTRO MATCH GIÀ INIZIATI O CONCLUSI
                             if dt_match_utc <= ora_attuale_utc:
                                 continue
                                 
-                            # Converti orario al fuso locale italiano
                             dt_match_local = dt_match_utc.astimezone(tz_roma)
                             orario_str = dt_match_local.strftime("%H:%M")
                             commence_time = dt_match_local.strftime("%Y-%m-%d")
@@ -631,7 +637,7 @@ if 'partite' in st.session_state and st.session_state['partite']:
     camp_nome = st.session_state.get('campionato_corrente', '')
 
     # ---------------------------------------------------------
-    # ORDINAMENTO PALINSESTO (PER ORARIO O PER CAMPIONATO)
+    # ORDINAMENTO PALINSESTO
     # ---------------------------------------------------------
     if modalita_ordinamento == "Orario di inizio":
         partite = sorted(partite, key=lambda x: x.get('datetime_raw', ''))
@@ -821,7 +827,55 @@ if 'partite' in st.session_state and st.session_state['partite']:
                             st.error(err)
 
     # ---------------------------------------------------------
-    # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE (FINO A 10 EVENTI)
+    # GENERATORE SCALATA AI (PROGRESSIONE CASSA AD ALTA AFFIDABILITÀ)
+    # ---------------------------------------------------------
+    st.markdown("---")
+    st.subheader("🚀 Algoritmo Scalata AI (Progressione Cassa)")
+    
+    col_sc1, col_sc2 = st.columns(2)
+    with col_sc1:
+        budget_totale = st.number_input("Budget Totale (€)", min_value=10.0, max_value=1000.0, value=100.0, step=10.0)
+    with col_sc2:
+        num_vite = st.number_input("Numero di Vite", min_value=1, max_value=5, value=3)
+        
+    num_step = st.slider("Numero di Step della Scalata:", min_value=3, max_value=8, value=5)
+
+    if st.button("📈 CALCOLA PIANO DI SCALATA AI"):
+        # Ordiniamo le partite in ordine cronologico esatto
+        partite_cronologiche = sorted(st.session_state['partite'], key=lambda x: x.get('datetime_raw', ''))
+        
+        # Filtriamo solo quelle ad alta confidenza (top_perc >= 60%)
+        partite_scalata = [p for p in partite_cronologiche if p['top_perc'] >= 60.0][:num_step]
+
+        if len(partite_scalata) < num_step:
+            st.warning(f"Trovate solo {len(partite_scalata)} partite ad alta confidenza per la scalata. Riduci il numero di step o la confidenza minima nei filtri.")
+        else:
+            cassa_singola_vita = budget_totale / num_vite
+            st.info(f"💰 **Cassa per tentativo (1 Vita):** {cassa_singola_vita:.2f}€ ({num_vite} vite totali)")
+            
+            cassa_corrente = cassa_singola_vita
+            st.markdown("### 📋 Tabella Marcia della Scalata:")
+            
+            for step_i, match_s in enumerate(partite_scalata, 1):
+                # Stima quota indicativa dalla percentuale di confidenza
+                quota_stimata = round(100.0 / match_s['top_perc'], 2)
+                vincita_step = cassa_corrente * quota_stimata
+                
+                st.markdown(f"""
+                <div class="scalata-box">
+                    <strong>STEP {step_i}</strong> | ⏰ {match_s.get('orario', '15:00')} - [{match_s.get('lega', '')}]<br>
+                    ⚽ <strong>{match_s['match']}</strong> ➔ <strong>{match_s['top_pick']}</strong> (Confidenza: {match_s['top_perc']:.1f}%)<br>
+                    💵 Puntata: <strong>{cassa_corrente:.2f}€</strong> @{quota_stimata} ➔ Vincita Potenziale: <strong style="color: #34d399;">{vincita_step:.2f}€</strong>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                cassa_corrente = vincita_step
+
+            moltiplicatore_totale = cassa_corrente / cassa_singola_vita
+            st.success(f"🎯 **Obiettivo Finale Scalata:** {cassa_corrente:.2f}€ (Moltiplicatore Totale: **x{moltiplicatore_totale:.2f}**)")
+
+    # ---------------------------------------------------------
+    # GENERATORE SCHEDINA MULTI-CAMPIONATO GLOBALE
     # ---------------------------------------------------------
     st.markdown("---")
     st.subheader("🎟️ Generatore Schedina Multipla")
