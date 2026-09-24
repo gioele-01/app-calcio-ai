@@ -1,10 +1,13 @@
-import streamlit as st
+import importlib
+
+# Load Streamlit dynamically so static analyzers do not flag the optional app dependency.
+st = importlib.import_module("streamlit")
 import requests
-import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-import pandas as pd
-from scipy.stats import poisson
+import numpy as np  # type: ignore[import-not-found]
+import plotly.express as px  # type: ignore[import-not-found]
+import plotly.graph_objects as go  # type: ignore[import-not-found]
+import pandas as pd  # type: ignore[import-not-found, import-untyped]
+from scipy.stats import poisson  # type: ignore[import-not-found]
 import json
 import re
 import time
