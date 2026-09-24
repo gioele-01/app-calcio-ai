@@ -490,7 +490,7 @@ TOP_LEAGUES_KEYS = [
     ("🇩🇪 Bundesliga", "soccer_germany_bundesliga"),
     ("🇫🇷 Ligue 1", "soccer_france_ligue_one"),
     ("🇳🇱 Eredivisie", "soccer_netherlands_eredivisie"),
-    ("🇵TOGALLO Primeira Liga", "soccer_portugal_primeira_liga"),
+    ("🇵🇹 Primeira Liga", "soccer_portugal_primeira_liga"),
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
@@ -580,6 +580,147 @@ def scarica_partite_the_odds_api(s_key, key):
 
 
 # ---------------------------------------------------------
+# CALCOLO PROBABILITÀ E MERCATI ESTESI (DEFINIZIONE FUNZIONE)
+# ---------------------------------------------------------
+def elab_match_odds(
+    match, comp_info, home_shift=0.0, away_shift=0.0, mercato_preferito="Tutti"
+):
+  casa = match["home_team"]
+  trasferta = match["away_team"]
+
+  prob_1, prob_X, prob_2 = 40.0, 30.0, 30.0
+  prob_over, prob_under = None, None
+
+  if match.get("bookmakers"):
+    bm = match["bookmakers"][0]
+    for m in bm.get("markets", []):
+      if m["key"] == "h2h":
+        outcomes = {o["name"]: o["price"] for o in m["outcomes"]}
+        q1 = outcomes.get(casa, 2.5)
+        qX = outcomes.get("Draw", 3.2)
+        q2 = outcomes.get(trasferta, 2.8)
+
+        inv_tot = (1 / q1) + (1 / qX) + (1 / q2)
+        prob_1 = (1 / q1 / inv_tot) * 100
+        prob_X = (1 / qX / inv_tot) * 100
+        prob_2 = (1 / q2 / inv_tot) * 100
+
+      elif m["key"] == "totals":
+        outcomes = {}
+        for o in m.get("outcomes", []):
+          name_clean = o["name"].strip()
+          point = o.get("point", 2.5)
+          if point == 2.5 or "2.5" in name_clean:
+            if "Over" in name_clean:
+              outcomes["Over"] = o["price"]
+            elif "Under" in name_clean:
+              outcomes["Under"] = o["price"]
+
+        if "Over" in outcomes and "Under" in outcomes:
+          q_over = outcomes["Over"]
+          q_under = outcomes["Under"]
+          inv_tot = (1 / q_over) + (1 / q_under)
+          prob_over = (1 / q_over / inv_tot) * 100
+          prob_under = (1 / q_under / inv_tot) * 100
+
+  p1_mod = max(5.0, min(85.0, prob_1 + home_shift))
+  p2_mod = max(5.0, min(85.0, prob_2 + away_shift))
+  px_mod = max(5.0, 100.0 - (p1_mod + p2_mod))
+
+  tot_mod = p1_mod + px_mod + p2_mod
+  p1_final = (p1_mod / tot_mod) * 100
+  px_final = (px_mod / tot_mod) * 100
+  p2_final = (p2_mod / tot_mod) * 100
+
+  if prob_over is not None:
+    gol_attesi_totali = 1.6 + (prob_over / 100.0) * 1.6
+  else:
+    gol_attesi_totali = comp_info.get("home_avg", 1.4) + comp_info.get(
+        "away_avg", 1.1
+    )
+
+  forza_casa = p1_final / (p1_final + p2_final + 1e-5)
+  lambda_c = max(0.65, gol_attesi_totali * forza_casa)
+  lambda_t = max(0.55, gol_attesi_totali * (1.0 - forza_casa))
+
+  matrice_raw = np.zeros((5, 5))
+  for i in range(5):
+    for j in range(5):
+      matrice_raw[i, j] = poisson.pmf(i, lambda_c) * poisson.pmf(j, lambda_t)
+
+  matrice = (matrice_raw / np.sum(matrice_raw)) * 100
+
+  p_o15 = float(
+      sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 1)
+  )
+  p_o25 = float(
+      sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 2)
+  )
+  p_o35 = float(
+      sum(matrice[i, j] for i in range(5) for j in range(5) if (i + j) > 3)
+  )
+  p_u25 = 100.0 - p_o25
+
+  if prob_over is None:
+    prob_over = p_o25
+    prob_under = p_u25
+
+  p_casa_segna = 1.0 - np.exp(-lambda_c)
+  p_trasferta_segna = 1.0 - np.exp(-lambda_t)
+
+  prob_goal_raw = (p_casa_segna * p_trasferta_segna) * 100
+  prob_goal = float(
+      min(85.0, max(35.0, prob_goal_raw * 0.7 + prob_over * 0.35))
+  )
+  prob_no_goal = 100.0 - prob_goal
+
+  tutti_gli_esiti = {
+      "1": p1_final,
+      "X": px_final,
+      "2": p2_final,
+      "Over 2.5": prob_over,
+      "Under 2.5": prob_under,
+      "Goal": prob_goal,
+      "No Goal": prob_no_goal,
+  }
+
+  if mercato_preferito == "Solo 1X2":
+    esiti = {"1": p1_final, "X": px_final, "2": p2_final}
+  elif mercato_preferito == "Solo Over / Under":
+    esiti = {"Over 2.5": prob_over, "Under 2.5": prob_under}
+  elif mercato_preferito == "Solo Goal / No Goal":
+    esiti = {"Goal": prob_goal, "No Goal": prob_no_goal}
+  else:
+    esiti = tutti_gli_esiti
+
+  top_pick = max(esiti, key=esiti.get)
+  top_perc = esiti[top_pick]
+
+  metriche_estese = {
+      "1X2": max(p1_final, px_final, p2_final),
+      "BTTS": prob_goal,
+      "O1.5": p_o15,
+      "O2.5": prob_over,
+      "O3.5": p_o35,
+      "U2.5": prob_under,
+  }
+
+  return (
+      top_pick,
+      top_perc,
+      p1_final,
+      px_final,
+      p2_final,
+      prob_over,
+      prob_under,
+      prob_goal,
+      prob_no_goal,
+      matrice[:4, :4],
+      metriche_estese,
+  )
+
+
+# ---------------------------------------------------------
 # GEMINI SINGLE-MATCH TACTICAL CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
@@ -642,7 +783,7 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
 
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (VERSIONE CON RATE-LIMIT SAFE & BACKOFF)
+# GEMINI BATCH CORRECTOR (RATE-LIMIT SAFE)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
   if not key:
@@ -689,7 +830,6 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
     }
 
     chunk_successo = False
-
     for mod in modelli:
       if chunk_successo:
         break
@@ -709,7 +849,6 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
                 chunk_successo = True
                 break
           elif response.status_code in [429, 503]:
-            # Se la quota è satura, attendiamo più a lungo prima di riprovare (backoff)
             time.sleep(4.0 * (intento + 1))
             continue
           else:
@@ -718,7 +857,6 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
           time.sleep(2.5)
           continue
 
-    # Pausa di sicurezza tra un lotto di partite e il successivo per evitare il blocco quota
     time.sleep(3.0)
 
   if risultati_totali:
@@ -726,11 +864,10 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
   else:
     return (
         None,
-        (
-            "⚠️ Quota API temporaneamente satura. Attendi circa 1 minuto prima"
-            " di riprovare."
-        ),
+        "⚠️ Quota API temporaneamente satura. Attendi circa 1 minuto prima"
+        " di riprovare.",
     )
+
 
 # ---------------------------------------------------------
 # EXECUTION ENGINE MULTI-LEGA
@@ -813,7 +950,9 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                 p_ng,
                 matrice,
                 m_estese,
-            ) = elab_match_odds(m, comp_info)
+            ) = elab_match_odds(
+                m, comp_info, mercato_preferito=mercato_preferito
+            )
 
             if perc_top >= min_confidence:
               partite_analizzate.append({
@@ -859,7 +998,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
   st.markdown("### 🎛️ **Seleziona Modalità Studio AI**")
 
-  # SELEZIONE TRAMITE RETTANGOLI INTERATTIVI
   col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
   with col_btn1:
     if st.button("⚽ Palinsesto"):
@@ -1002,7 +1140,11 @@ if "partite" in st.session_state and st.session_state["partite"]:
                       new_matrice,
                       new_m_estese,
                   ) = elab_match_odds(
-                      raw_match, comp_info, home_shift=h_s, away_shift=a_s
+                      raw_match,
+                      comp_info,
+                      home_shift=h_s,
+                      away_shift=a_s,
+                      mercato_preferito=mercato_preferito,
                   )
 
                   casa_team, trasf_team, _ = dettagli[p["match"]]
@@ -1147,7 +1289,11 @@ if "partite" in st.session_state and st.session_state["partite"]:
                         new_matrice,
                         new_m_estese,
                     ) = elab_match_odds(
-                        raw_match, comp_info, home_shift=h_s, away_shift=a_s
+                        raw_match,
+                        comp_info,
+                        home_shift=h_s,
+                        away_shift=a_s,
+                        mercato_preferito=mercato_preferito,
                     )
 
                     casa_team, trasf_team, _ = dettagli[p["match"]]
@@ -1538,7 +1684,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI (CON FILTRO SU DATA E ORARIO DIVERSI)
+  # 7. SCALATA AI (SEQUENZIALE PER DATA/ORARIO)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
     st.subheader("🚀 Algoritmo Scalata AI (Progressione Cassa)")
@@ -1567,7 +1713,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
     )
 
     if st.button("📈 CALCOLA PIANO DI SCALATA AI", key="btn_scalata"):
-      # Ordina le partite strictly per orario/data
       partite_cronologiche = sorted(
           st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
       )
@@ -1578,7 +1723,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
       partite_scalata = []
       ultimo_datetime = None
 
-      # Algoritmo che impone un orario strettamente successivo per ogni step
       for cand in candidati_scalata:
         dt_cand = cand.get("datetime_raw", "")
 
