@@ -151,6 +151,19 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# MARGINE DI PROFITTO MEDIO BOOKMAKER (AGGIO ~5%)
+MARGINE_BOOKMAKER = 1.05
+
+
+def calcola_quota_reale(prob_percentuale):
+  """Calcola la quota convertendo la probabilità e applicando la lavagna bookmaker."""
+  if prob_percentuale <= 0:
+    return 1.01
+  quota_pura = 100.0 / prob_percentuale
+  quota_reale = quota_pura / MARGINE_BOOKMAKER
+  return max(1.05, round(quota_reale, 2))
+
+
 # ---------------------------------------------------------
 # HEADER APPLICAZIONE
 # ---------------------------------------------------------
@@ -517,7 +530,6 @@ with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
         ],
     )
 
-  # SELETTORE PERIODO DI DATE (RANGE)
   data_inizio, data_fine = None, None
   if filtro_data == "📅 Intervallo di Date Personalizzato":
     oggi = datetime.now().date()
@@ -858,7 +870,7 @@ def elab_match_odds(match, comp_info, home_shift=0.0, away_shift=0.0):
 
 
 # ---------------------------------------------------------
-# EXECUTION ENGINE MULTI-LEGA (CON FILTRO ORA LOCALE E MATCH FUTURI)
+# EXECUTION ENGINE MULTI-LEGA
 # ---------------------------------------------------------
 if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
   if not api_key:
@@ -886,6 +898,15 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
 
         if all_matches:
           for m in all_matches:
+            casa = m.get("home_team", "").strip()
+            trasferta = m.get("away_team", "").strip()
+
+            if not casa or not trasferta or casa.lower() == trasferta.lower():
+              continue
+
+            if not m.get("bookmakers") or len(m["bookmakers"]) == 0:
+              continue
+
             raw_date = m["commence_time"]
 
             try:
@@ -893,7 +914,6 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                   raw_date.replace("Z", "+00:00")
               )
 
-              # 🛑 FILTRO MATCH GIÀ INIZIATI O CONCLUSI
               if dt_match_utc <= ora_attuale_utc:
                 continue
 
@@ -906,7 +926,6 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
               match_date_obj = oggi_date
               commence_time = raw_date[:10]
 
-            # FILTRAGGIO DATE
             if filtro_data == "Solo Oggi" and match_date_obj != oggi_date:
               continue
             elif (
@@ -917,8 +936,6 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
               if not (data_inizio <= match_date_obj <= data_fine):
                 continue
 
-            casa = m["home_team"]
-            trasferta = m["away_team"]
             nome_match = f"{casa} vs {trasferta}"
 
             (
@@ -966,7 +983,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
       st.error("❌ Nessuna partita futura trovata con i filtri selezionati.")
 
 # ---------------------------------------------------------
-# INTERFACCIA UTENTE CON SCHEDE INTERATTIVE (TABS)
+# INTERFACCIA CON BOTTONI QUADRATINI/RETTANGOLI
 # ---------------------------------------------------------
 if "partite" in st.session_state and st.session_state["partite"]:
   partite = st.session_state["partite"]
@@ -974,31 +991,64 @@ if "partite" in st.session_state and st.session_state["partite"]:
   raw_m_dict = st.session_state.get("raw_matches", {})
   camp_nome = st.session_state.get("campionato_corrente", "")
 
-  # TABS DELL'APPLICAZIONE (INCLUSA LA NUOVA "BOMBA DEL GIORNO")
-  (
-      tab_palinsesto,
-      tab_singola,
-      tab_doppia,
-      tab_tripla,
-      tab_mista,
-      tab_bomba,
-      tab_scalata,
-      tab_multipla,
-  ) = st.tabs([
-      "⚽ Palinsesto & Analisi",
-      "🎯 Singola del Giorno",
-      "👥 Doppia del Giorno",
-      "☘️ Tripla del Giorno",
-      "📊 Mista del Giorno",
-      "💣 Bomba del Giorno",
-      "🚀 Scalata AI (Progressione)",
-      "🎟️ Multipla Top Pick",
-  ])
+  if "active_tab" not in st.session_state:
+    st.session_state["active_tab"] = "Palinsesto"
+
+  st.markdown("### 🎛️ **Seleziona Modalità Studio AI**")
+
+  # GRIGLIA DI BOTTONI RETTANGOLARI (2 RIGHE X 4 COLONNE)
+  col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
+
+  with col_btn1:
+    if st.button("⚽ Palinsesto", key="btn_tab_pal"):
+      st.session_state["active_tab"] = "Palinsesto"
+      st.rerun()
+
+  with col_btn2:
+    if st.button("🎯 Singola", key="btn_tab_sing"):
+      st.session_state["active_tab"] = "Singola"
+      st.rerun()
+
+  with col_btn3:
+    if st.button("👥 Doppia", key="btn_tab_dop"):
+      st.session_state["active_tab"] = "Doppia"
+      st.rerun()
+
+  with col_btn4:
+    if st.button("☘️ Tripla", key="btn_tab_trip"):
+      st.session_state["active_tab"] = "Tripla"
+      st.rerun()
+
+  col_btn5, col_btn6, col_btn7, col_btn8 = st.columns(4)
+
+  with col_btn5:
+    if st.button("📊 Mista", key="btn_tab_mist"):
+      st.session_state["active_tab"] = "Mista"
+      st.rerun()
+
+  with col_btn6:
+    if st.button("💣 Bomba", key="btn_tab_bomb"):
+      st.session_state["active_tab"] = "Bomba"
+      st.rerun()
+
+  with col_btn7:
+    if st.button("🚀 Scalata", key="btn_tab_scal"):
+      st.session_state["active_tab"] = "Scalata"
+      st.rerun()
+
+  with col_btn8:
+    if st.button("🎟️ Multipla", key="btn_tab_mult"):
+      st.session_state["active_tab"] = "Multipla"
+      st.rerun()
+
+  st.markdown("---")
+
+  current_tab = st.session_state["active_tab"]
 
   # ---------------------------------------------------------
-  # TAB 1: PALINSESTO DETTAGLIATO & HEATMAP
+  # 1. PALINSESTO & ANALISI
   # ---------------------------------------------------------
-  with tab_palinsesto:
+  if current_tab == "Palinsesto":
     if modalita_ordinamento == "Orario di inizio":
       partite = sorted(partite, key=lambda x: x.get("datetime_raw", ""))
     else:
@@ -1258,14 +1308,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 st.error(err)
 
   # ---------------------------------------------------------
-  # TAB 2: SINGOLA DEL GIORNO (QUOTA ~1.80)
+  # 2. SINGOLA DEL GIORNO
   # ---------------------------------------------------------
-  with tab_singola:
+  elif current_tab == "Singola":
     st.subheader("🎯 Singola del Giorno (Quota ~1.80)")
     st.write(
         "L'algoritmo seleziona l'evento con il miglior rapporto"
-        " rischio/rendimento e **quota vicina a 1.80** (confidenza attorno al"
-        " 55-60%)."
+        " rischio/rendimento e **quota vicina a 1.80**."
     )
 
     target_quota = st.slider(
@@ -1275,7 +1324,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         value=1.80,
         step=0.05,
     )
-    target_perc = (1.0 / target_quota) * 100
+    target_perc = 100.0 / (target_quota * MARGINE_BOOKMAKER)
 
     best_match = min(
         st.session_state["partite"],
@@ -1283,7 +1332,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
     )
 
     if best_match:
-      quota_calcolata = round(100.0 / best_match["top_perc"], 2)
+      quota_calcolata = calcola_quota_reale(best_match["top_perc"])
       match_key_s = f"gemini_report_{best_match['match']}"
 
       st.markdown(f"""
@@ -1298,21 +1347,15 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
       if match_key_s in st.session_state:
         st.info(st.session_state[match_key_s])
-      else:
-        st.caption(
-            "💡 Puoi eseguire lo **Studio Tattico Gemini** sulla prima scheda"
-            " per affinare ulteriormente questa giocata."
-        )
 
   # ---------------------------------------------------------
-  # TAB 3: DOPPIA DEL GIORNO (QUOTA ~2.50)
+  # 3. DOPPIA DEL GIORNO
   # ---------------------------------------------------------
-  with tab_doppia:
-    st.subheader("👥 Doppia del Giorno (Quota Raddoppio ~2.50)")
+  elif current_tab == "Doppia":
+    st.subheader("👥 Doppia del Giorno (Quota ~2.50)")
     st.write(
         "L'algoritmo seleziona la **migliore coppia di partite** il cui"
-        " prodotto delle quote sia il più vicino possibile alla quota target"
-        " selezionata."
+        " prodotto delle quote sia vicino al raddoppio."
     )
 
     target_quota_doppia = st.slider(
@@ -1336,9 +1379,9 @@ if "partite" in st.session_state and st.session_state["partite"]:
       for i in range(len(lista_p)):
         for j in range(i + 1, len(lista_p)):
           p1_item, p2_item = lista_p[i], lista_p[j]
-          q1 = 100.0 / p1_item["top_perc"]
-          q2 = 100.0 / p2_item["top_perc"]
-          q_tot = q1 * q2
+          q1 = calcola_quota_reale(p1_item["top_perc"])
+          q2 = calcola_quota_reale(p2_item["top_perc"])
+          q_tot = round(q1 * q2, 2)
 
           diff = abs(q_tot - target_quota_doppia)
           if diff < min_diff:
@@ -1354,13 +1397,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
                         <span class="badge-time">⏰ {m1.get('data', '')} {m1.get('orario', '15:00')}</span>
                         <span class="badge-league">{m1.get('lega', '')}</span><br>
                         <strong style="font-size: 1.05rem; color: #f0fdf4;">1. {m1['match']}</strong><br>
-                        👉 Pronostico: <strong style="color: #34d399;">{m1['top_pick']}</strong> | Quota: <strong style="color: #fbbf24;">@{q1:.2f}</strong> (Confidenza: {m1['top_perc']:.1f}%)
+                        👉 Pronostico: <strong style="color: #34d399;">{m1['top_pick']}</strong> | Quota: <strong style="color: #fbbf24;">@{q1:.2f}</strong>
                     </div>
                     <div>
                         <span class="badge-time">⏰ {m2.get('data', '')} {m2.get('orario', '15:00')}</span>
                         <span class="badge-league">{m2.get('lega', '')}</span><br>
                         <strong style="font-size: 1.05rem; color: #f0fdf4;">2. {m2['match']}</strong><br>
-                        👉 Pronostico: <strong style="color: #34d399;">{m2['top_pick']}</strong> | Quota: <strong style="color: #fbbf24;">@{q2:.2f}</strong> (Confidenza: {m2['top_perc']:.1f}%)
+                        👉 Pronostico: <strong style="color: #34d399;">{m2['top_pick']}</strong> | Quota: <strong style="color: #fbbf24;">@{q2:.2f}</strong>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1368,20 +1411,19 @@ if "partite" in st.session_state and st.session_state["partite"]:
         prob_combinata_d = (m1["top_perc"] / 100.0) * (
             m2["top_perc"] / 100.0
         ) * 100
-
         st.success(f"""
                 🎯 **QUOTA TOTALE DOPPIA:** **@{q_tot:.2f}**
                 💡 **Probabilità Stimata Combinata:** **{prob_combinata_d:.1f}%**
                 """)
 
   # ---------------------------------------------------------
-  # TAB 4: TRIPLA DEL GIORNO (QUOTA ~5.00)
+  # 4. TRIPLA DEL GIORNO
   # ---------------------------------------------------------
-  with tab_tripla:
+  elif current_tab == "Tripla":
     st.subheader("☘️ Tripla del Giorno (Quota ~5.00)")
     st.write(
         "L'algoritmo seleziona la **migliore combinazione di 3 partite** per"
-        " raggiungere la quota obiettivo selezionata."
+        " raggiungere la quota obiettivo."
     )
 
     target_quota_tripla = st.slider(
@@ -1406,10 +1448,10 @@ if "partite" in st.session_state and st.session_state["partite"]:
         for j in range(i + 1, len(lista_p)):
           for k in range(j + 1, len(lista_p)):
             p1_i, p2_i, p3_i = lista_p[i], lista_p[j], lista_p[k]
-            q1 = 100.0 / p1_i["top_perc"]
-            q2 = 100.0 / p2_i["top_perc"]
-            q3 = 100.0 / p3_i["top_perc"]
-            q_tot = q1 * q2 * q3
+            q1 = calcola_quota_reale(p1_i["top_perc"])
+            q2 = calcola_quota_reale(p2_i["top_perc"])
+            q3 = calcola_quota_reale(p3_i["top_perc"])
+            q_tot = round(q1 * q2 * q3, 2)
 
             diff = abs(q_tot - target_quota_tripla)
             if diff < min_diff_t:
@@ -1424,20 +1466,17 @@ if "partite" in st.session_state and st.session_state["partite"]:
                     <div style="margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
                         <span class="badge-time">⏰ {m1.get('data', '')} {m1.get('orario', '15:00')}</span>
                         <span class="badge-league">{m1.get('lega', '')}</span><br>
-                        <strong style="font-size: 1.05rem; color: #f0fdf4;">1. {m1['match']}</strong><br>
-                        👉 Pronostico: <strong style="color: #34d399;">{m1['top_pick']}</strong> | Quota: <strong style="color: #fbbf24;">@{q1:.2f}</strong> (Confidenza: {m1['top_perc']:.1f}%)
+                        <strong style="font-size: 1.05rem; color: #f0fdf4;">1. {m1['match']}</strong> ➔ <strong style="color: #34d399;">{m1['top_pick']}</strong> @{q1:.2f}
                     </div>
                     <div style="margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">
                         <span class="badge-time">⏰ {m2.get('data', '')} {m2.get('orario', '15:00')}</span>
                         <span class="badge-league">{m2.get('lega', '')}</span><br>
-                        <strong style="font-size: 1.05rem; color: #f0fdf4;">2. {m2['match']}</strong><br>
-                        👉 Pronostico: <strong style="color: #34d399;">{m2['top_pick']}</strong> | Quota: <strong style="color: #fbbf24;">@{q2:.2f}</strong> (Confidenza: {m2['top_perc']:.1f}%)
+                        <strong style="font-size: 1.05rem; color: #f0fdf4;">2. {m2['match']}</strong> ➔ <strong style="color: #34d399;">{m2['top_pick']}</strong> @{q2:.2f}
                     </div>
                     <div>
                         <span class="badge-time">⏰ {m3.get('data', '')} {m3.get('orario', '15:00')}</span>
                         <span class="badge-league">{m3.get('lega', '')}</span><br>
-                        <strong style="font-size: 1.05rem; color: #f0fdf4;">3. {m3['match']}</strong><br>
-                        👉 Pronostico: <strong style="color: #34d399;">{m3['top_pick']}</strong> | Quota: <strong style="color: #fbbf24;">@{q3:.2f}</strong> (Confidenza: {m3['top_perc']:.1f}%)
+                        <strong style="font-size: 1.05rem; color: #f0fdf4;">3. {m3['match']}</strong> ➔ <strong style="color: #34d399;">{m3['top_pick']}</strong> @{q3:.2f}
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
@@ -1455,13 +1494,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 """)
 
   # ---------------------------------------------------------
-  # TAB 5: MISTA DEL GIORNO (QUOTA ~15.00 - 20.00)
+  # 5. MISTA DEL GIORNO
   # ---------------------------------------------------------
-  with tab_mista:
+  elif current_tab == "Mista":
     st.subheader("📊 Mista del Giorno (Quota ~15.00 - 20.00)")
     st.write(
         "L'algoritmo crea una **schedina mista ad alta quota** selezionando da"
-        " 4 a 7 eventi bilanciati per raggiungere un moltiplicatore elevato."
+        " 4 a 7 eventi bilanciati."
     )
 
     target_mista = st.slider(
@@ -1486,7 +1525,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
       q_accumulata = 1.0
 
       for p_elem in lista_p:
-        q_single = 100.0 / p_elem["top_perc"]
+        q_single = calcola_quota_reale(p_elem["top_perc"])
         if (q_accumulata * q_single) <= (target_mista * 1.25):
           mista_selezionata.append((p_elem, q_single))
           q_accumulata *= q_single
@@ -1534,14 +1573,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 💡 **Probabilità Stimata Combinata:** **{perc_mista_tot:.2f}%**
                 """)
 
-        txt_mista += (
-            f"🎯 *Quota Totale:* @{q_accumulata:.2f}\n💡 *Probabilità"
-            f" AI:* {perc_mista_tot:.2f}%\n🤖 Generato con Football AI Match"
-            " Analyzer"
-        )
-
         st.download_button(
-            label="📥 Scarica Mista del Giorno (.txt)",
+            label="📥 Scarica Mista (.txt)",
             data=txt_mista,
             file_name=(
                 f"mista_del_giorno_{datetime.today().strftime('%Y%m%d')}.txt"
@@ -1550,13 +1583,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # TAB 6: BOMBA DEL GIORNO (QUOTA ~100+)
+  # 6. BOMBA DEL GIORNO
   # ---------------------------------------------------------
-  with tab_bomba:
+  elif current_tab == "Bomba":
     st.subheader("💣 Bomba del Giorno (Quota ~100+)")
     st.write(
         "L'algoritmo compone una **schedina bomba ad altissimo moltiplicatore**"
-        " accumulando eventi per raggiungere la quota target richiesta."
+        " accumulando eventi ad alta quota."
     )
 
     target_bomba = st.slider(
@@ -1571,20 +1604,20 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
     if len(lista_p) < 4:
       st.warning(
-          "Servono almeno 4 partite nel palinsesto per generare una bomba ad"
-          " alta quota."
+          "Servono almeno 4 partite nel palinsesto per generare una bomba."
       )
     else:
       bomba_selezionata = []
       q_bomba_accumulata = 1.0
 
-      # Ordina le partite privilegiando quote medio-alte per raggiungere velocemente quota 100+
       partite_bomba_sort = sorted(
-          lista_p, key=lambda x: (100.0 / x["top_perc"]), reverse=True
+          lista_p,
+          key=lambda x: calcola_quota_reale(x["top_perc"]),
+          reverse=True,
       )
 
       for p_elem in partite_bomba_sort:
-        q_single = 100.0 / p_elem["top_perc"]
+        q_single = calcola_quota_reale(p_elem["top_perc"])
         bomba_selezionata.append((p_elem, q_single))
         q_bomba_accumulata *= q_single
 
@@ -1634,12 +1667,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 💡 **Probabilità Stimata Combinata:** **{perc_bomba_tot:.4f}%**
                 """)
 
-        txt_bomba += (
-            f"🔥 *Quota Totale:* @{q_bomba_accumulata:.2f}\n💡 *Probabilità"
-            f" AI:* {perc_bomba_tot:.4f}%\n🤖 Generato con Football AI Match"
-            " Analyzer"
-        )
-
         st.download_button(
             label="📥 Scarica Bomba del Giorno (.txt)",
             data=txt_bomba,
@@ -1650,14 +1677,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # TAB 7: MODULO SCALATA AI (PROGRESSIONE CASSA)
+  # 7. SCALATA AI
   # ---------------------------------------------------------
-  with tab_scalata:
+  elif current_tab == "Scalata":
     st.subheader("🚀 Algoritmo Scalata AI (Progressione Cassa)")
     st.write(
         "La Scalata seleziona i match ad **altissima confidenza** ordinandoli"
-        " per orario per consentire la re-investizione progressiva delle"
-        " vincite."
+        " per orario per consentire la re-investizione progressiva."
     )
 
     col_sc1, col_sc2 = st.columns(2)
@@ -1702,7 +1728,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         st.markdown("### 📋 Marcia di Scalata Consigliata:")
 
         for step_i, match_s in enumerate(partite_scalata, 1):
-          quota_stimata = round(100.0 / match_s["top_perc"], 2)
+          quota_stimata = calcola_quota_reale(match_s["top_perc"])
           vincita_step = cassa_corrente * quota_stimata
 
           st.markdown(
@@ -1727,9 +1753,9 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # TAB 8: GENERATORE SCHEDINA MULTIPLA
+  # 8. MULTIPLA TOP PICK
   # ---------------------------------------------------------
-  with tab_multipla:
+  elif current_tab == "Multipla":
     st.subheader("🎟️ Generatore Schedina Multipla")
     num_eventi = st.slider(
         "Numero di eventi per la multipla:",
@@ -1768,18 +1794,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
         prob_combinata *= ev["top_perc"] / 100
 
       perc_comb_tot = prob_combinata * 100
-      testo_telegram += (
-          f"💡 *Probabilità Combinata Modello:* {perc_comb_tot:.1f}%\n🤖 Generato"
-          " con Football AI Match Analyzer"
-      )
-
       st.info(
           "💡 **Probabilità Stimata Combinata della Multipla:**"
           f" {perc_comb_tot:.1f}%"
       )
 
       st.download_button(
-          label="📥 Scarica Schedina pronta per Telegram / WhatsApp (.txt)",
+          label="📥 Scarica Schedina per Telegram / WhatsApp (.txt)",
           data=testo_telegram,
           file_name=(
               f"schedina_globale_{datetime.today().strftime('%Y%m%d')}.txt"
@@ -1788,7 +1809,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
       )
 
   # ---------------------------------------------------------
-  # VISUALIZZAZIONE HEATMAP RISULTATI ESATTI
+  # HEATMAP RISULTATI ESATTI
   # ---------------------------------------------------------
   st.markdown("---")
   st.subheader("🔥 Heatmap Risultato Esatto")
