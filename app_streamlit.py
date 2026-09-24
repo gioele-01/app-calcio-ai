@@ -88,11 +88,11 @@ st.markdown(
         width: 100%;
         background: linear-gradient(90deg, #059669 0%, #10b981 100%) !important;
         color: #ffffff !important;
-        font-size: 15px !important;
+        font-size: 14px !important;
         font-weight: 700 !important;
         border: none !important;
         border-radius: 10px !important;
-        padding: 0.65em 1em !important;
+        padding: 0.65em 0.5em !important;
         transition: all 0.25s ease !important;
         box-shadow: 0 4px 14px rgba(16, 185, 129, 0.25) !important;
     }
@@ -151,12 +151,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# MARGINE DI PROFITTO MEDIO BOOKMAKER (AGGIO ~5%)
 MARGINE_BOOKMAKER = 1.05
 
 
 def calcola_quota_reale(prob_percentuale):
-  """Calcola la quota convertendo la probabilità e applicando la lavagna bookmaker."""
   if prob_percentuale <= 0:
     return 1.01
   quota_pura = 100.0 / prob_percentuale
@@ -629,12 +627,12 @@ def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
               return json.loads(json_match.group(0)), None
             return json.loads(text_res), None
         elif response.status_code in [429, 503]:
-          time.sleep(3.0 * (intento + 1))
+          time.sleep(2.0 * (intento + 1))
           continue
         else:
           break
       except Exception:
-        time.sleep(2.0)
+        time.sleep(1.5)
         continue
 
   return (
@@ -710,23 +708,22 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
                 chunk_successo = True
                 break
           elif response.status_code in [429, 503]:
-            time.sleep(5.0 * (intento + 1))
+            time.sleep(3.0 * (intento + 1))
             continue
           else:
             break
         except Exception:
-          time.sleep(3.0)
+          time.sleep(2.0)
           continue
 
-    time.sleep(2.5)
+    time.sleep(1.5)
 
   if risultati_totali:
     return risultati_totali, None
   else:
     return (
         None,
-        "⚠️ Quota API temporaneamente satura. Usa il pulsante 'Studio Tattico'"
-        " sulle singole partite oppure attendi 30 secondi.",
+        "⚠️ Quota API temporaneamente satura. Riprova tra poco.",
     )
 
 
@@ -983,7 +980,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
       st.error("❌ Nessuna partita futura trovata con i filtri selezionati.")
 
 # ---------------------------------------------------------
-# INTERFACCIA CON BOTTONI QUADRATINI/RETTANGOLI
+# INTERFACCIA UTENTE CON BOTTONI RETTANGOLARI
 # ---------------------------------------------------------
 if "partite" in st.session_state and st.session_state["partite"]:
   partite = st.session_state["partite"]
@@ -996,53 +993,44 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
   st.markdown("### 🎛️ **Seleziona Modalità Studio AI**")
 
-  # GRIGLIA DI BOTTONI RETTANGOLARI (2 RIGHE X 4 COLONNE)
+  # SELEZIONE TRAMITE RETTANGOLI INTERATTIVI
   col_btn1, col_btn2, col_btn3, col_btn4 = st.columns(4)
-
   with col_btn1:
-    if st.button("⚽ Palinsesto", key="btn_tab_pal"):
+    if st.button("⚽ Palinsesto"):
       st.session_state["active_tab"] = "Palinsesto"
       st.rerun()
-
   with col_btn2:
-    if st.button("🎯 Singola", key="btn_tab_sing"):
+    if st.button("🎯 Singola"):
       st.session_state["active_tab"] = "Singola"
       st.rerun()
-
   with col_btn3:
-    if st.button("👥 Doppia", key="btn_tab_dop"):
+    if st.button("👥 Doppia"):
       st.session_state["active_tab"] = "Doppia"
       st.rerun()
-
   with col_btn4:
-    if st.button("☘️ Tripla", key="btn_tab_trip"):
+    if st.button("☘️ Tripla"):
       st.session_state["active_tab"] = "Tripla"
       st.rerun()
 
   col_btn5, col_btn6, col_btn7, col_btn8 = st.columns(4)
-
   with col_btn5:
-    if st.button("📊 Mista", key="btn_tab_mist"):
+    if st.button("📊 Mista"):
       st.session_state["active_tab"] = "Mista"
       st.rerun()
-
   with col_btn6:
-    if st.button("💣 Bomba", key="btn_tab_bomb"):
+    if st.button("💣 Bomba"):
       st.session_state["active_tab"] = "Bomba"
       st.rerun()
-
   with col_btn7:
-    if st.button("🚀 Scalata", key="btn_tab_scal"):
+    if st.button("🚀 Scalata"):
       st.session_state["active_tab"] = "Scalata"
       st.rerun()
-
   with col_btn8:
-    if st.button("🎟️ Multipla", key="btn_tab_mult"):
+    if st.button("🎟️ Multipla"):
       st.session_state["active_tab"] = "Multipla"
       st.rerun()
 
   st.markdown("---")
-
   current_tab = st.session_state["active_tab"]
 
   # ---------------------------------------------------------
@@ -1242,6 +1230,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
         m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
         st.markdown("---")
+
+        # GESTIONE SINGOLO BOTTONE GEMINI AI
         if match_key in st.session_state:
           st.info(st.session_state[match_key])
           if st.button(
@@ -1252,60 +1242,66 @@ if "partite" in st.session_state and st.session_state["partite"]:
         else:
           if st.button(
               "🧠 Studio Tattico Gemini & Correzione %",
-              key=f"btn_{idx}_{p['match']}",
+              key=f"btn_ai_{idx}_{p['match']}",
           ):
-            with st.spinner("Gemini sta analizzando notizie e formazioni..."):
-              ai_res, err = studio_tattico_gemini(
-                  p["match"], p["p1"], p["px"], p["p2"], gemini_api_key
+            if not gemini_api_key:
+              st.error(
+                  "Inserisci la chiave GEMINI_API_KEY nei Secrets o nel campo"
+                  " in alto."
               )
-
-              if ai_res:
-                h_s = ai_res.get("home_shift", 0.0)
-                a_s = ai_res.get("away_shift", 0.0)
-                report_txt = (
-                    "🧠 **Studio Tattico AI:**\n"
-                    f"{ai_res.get('analisi_sintetica', '')}\n\n⚡ *Shift"
-                    f" Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%),"
-                    f" Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+            else:
+              with st.spinner("Gemini sta analizando notizie e formazioni..."):
+                ai_res, err = studio_tattico_gemini(
+                    p["match"], p["p1"], p["px"], p["p2"], gemini_api_key
                 )
 
-                st.session_state[match_key] = report_txt
-
-                raw_match = raw_m_dict.get(p["match"])
-                if raw_match:
-                  (
-                      new_pick,
-                      new_perc,
-                      new_p1,
-                      new_px,
-                      new_p2,
-                      new_over,
-                      new_under,
-                      new_goal,
-                      new_ng,
-                      new_matrice,
-                      new_m_estese,
-                  ) = elab_match_odds(
-                      raw_match, comp_info, home_shift=h_s, away_shift=a_s
+                if ai_res:
+                  h_s = ai_res.get("home_shift", 0.0)
+                  a_s = ai_res.get("away_shift", 0.0)
+                  report_txt = (
+                      "🧠 **Studio Tattico AI:**\n"
+                      f"{ai_res.get('analisi_sintetica', '')}\n\n⚡ *Shift"
+                      f" Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%),"
+                      f" Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
                   )
 
-                  casa_team, trasf_team, _ = dettagli[p["match"]]
-                  st.session_state["dettagli_matrici"][p["match"]] = (
-                      casa_team,
-                      trasf_team,
-                      new_matrice,
-                  )
+                  st.session_state[match_key] = report_txt
 
-                  p["top_pick"] = new_pick
-                  p["top_perc"] = new_perc
-                  p["p1"], p["px"], p["p2"] = new_p1, new_px, new_p2
-                  p["over"], p["under"] = new_over, new_under
-                  p["goal"], p["no_goal"] = new_goal, new_ng
-                  p["m_estese"] = new_m_estese
+                  raw_match = raw_m_dict.get(p["match"])
+                  if raw_match:
+                    (
+                        new_pick,
+                        new_perc,
+                        new_p1,
+                        new_px,
+                        new_p2,
+                        new_over,
+                        new_under,
+                        new_goal,
+                        new_ng,
+                        new_matrice,
+                        new_m_estese,
+                    ) = elab_match_odds(
+                        raw_match, comp_info, home_shift=h_s, away_shift=a_s
+                    )
 
-                st.rerun()
-              else:
-                st.error(err)
+                    casa_team, trasf_team, _ = dettagli[p["match"]]
+                    st.session_state["dettagli_matrici"][p["match"]] = (
+                        casa_team,
+                        trasf_team,
+                        new_matrice,
+                    )
+
+                    p["top_pick"] = new_pick
+                    p["top_perc"] = new_perc
+                    p["p1"], p["px"], p["p2"] = new_p1, new_px, new_p2
+                    p["over"], p["under"] = new_over, new_under
+                    p["goal"], p["no_goal"] = new_goal, new_ng
+                    p["m_estese"] = new_m_estese
+
+                  st.rerun()
+                else:
+                  st.error(err)
 
   # ---------------------------------------------------------
   # 2. SINGOLA DEL GIORNO
