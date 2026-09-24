@@ -490,7 +490,7 @@ TOP_LEAGUES_KEYS = [
     ("🇩🇪 Bundesliga", "soccer_germany_bundesliga"),
     ("🇫🇷 Ligue 1", "soccer_france_ligue_one"),
     ("🇳🇱 Eredivisie", "soccer_netherlands_eredivisie"),
-    ("🇵🇹 Primeira Liga", "soccer_portugal_primeira_liga"),
+    ("🇵TOGALLO Primeira Liga", "soccer_portugal_primeira_liga"),
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
@@ -1231,7 +1231,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
         st.markdown("---")
 
-        # GESTIONE SINGOLO BOTTONE GEMINI AI
         if match_key in st.session_state:
           st.info(st.session_state[match_key])
           if st.button(
@@ -1250,7 +1249,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
                   " in alto."
               )
             else:
-              with st.spinner("Gemini sta analizando notizie e formazioni..."):
+              with st.spinner("Gemini sta analizzando notizie e formazioni..."):
                 ai_res, err = studio_tattico_gemini(
                     p["match"], p["p1"], p["px"], p["p2"], gemini_api_key
                 )
@@ -1673,13 +1672,14 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI
+  # 7. SCALATA AI (CON FILTRO SU DATA E ORARIO DIVERSI)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
     st.subheader("🚀 Algoritmo Scalata AI (Progressione Cassa)")
     st.write(
-        "La Scalata seleziona i match ad **altissima confidenza** ordinandoli"
-        " per orario per consentire la re-investizione progressiva."
+        "La Scalata seleziona match ad **altissima confidenza** con **orari e"
+        " date rigidamente sequenziali** per consentire il reinvestimento della"
+        " cassa."
     )
 
     col_sc1, col_sc2 = st.columns(2)
@@ -1701,17 +1701,33 @@ if "partite" in st.session_state and st.session_state["partite"]:
     )
 
     if st.button("📈 CALCOLA PIANO DI SCALATA AI", key="btn_scalata"):
+      # Ordina le partite strictly per orario/data
       partite_cronologiche = sorted(
           st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
       )
-      partite_scalata = [
+      candidati_scalata = [
           p for p in partite_cronologiche if p["top_perc"] >= 55.0
-      ][:num_step]
+      ]
+
+      partite_scalata = []
+      ultimo_datetime = None
+
+      # Algoritmo che impone un orario strettamente successivo per ogni step
+      for cand in candidati_scalata:
+        dt_cand = cand.get("datetime_raw", "")
+
+        if ultimo_datetime is None or dt_cand > ultimo_datetime:
+          partite_scalata.append(cand)
+          ultimo_datetime = dt_cand
+
+        if len(partite_scalata) >= num_step:
+          break
 
       if len(partite_scalata) < num_step:
         st.warning(
-            f"Trovate solo {len(partite_scalata)} partite ad alta confidenza"
-            " (≥55%) per la scalata. Prova a ridurre il numero di step."
+            f"Trovate solo {len(partite_scalata)} partite in orari consecutivi"
+            " ad alta confidenza (≥55%) per la scalata. Prova a ridurre il"
+            " numero di step o ampliare il filtro data."
         )
       else:
         cassa_singola_vita = budget_totale / num_vite
@@ -1721,7 +1737,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
         cassa_corrente = cassa_singola_vita
-        st.markdown("### 📋 Marcia di Scalata Consigliata:")
+        st.markdown("### 📋 Marcia di Scalata Sequenziale Consigliata:")
 
         for step_i, match_s in enumerate(partite_scalata, 1):
           quota_stimata = calcola_quota_reale(match_s["top_perc"])
