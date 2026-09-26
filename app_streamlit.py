@@ -1684,96 +1684,122 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI (SEQUENZIALE PER DATA/ORARIO)
+  # 7. SCALATA AI (PROGRESSIONE INTERATTIVA STEP-BY-STEP)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
-    st.subheader("🚀 Algoritmo Scalata AI (Progressione Cassa)")
+    st.subheader("🚀 Scalata AI Interattiva (Step-by-Step)")
     st.write(
-        "La Scalata seleziona match ad **altissima confidenza** con **orari e"
-        " date rigidamente sequenziali** per consentire il reinvestimento della"
-        " cassa."
+        "L'algoritmo ti propone **un solo evento alla volta** (il più imminente"
+        " e con la massima confidenza). Una volta vinta la giocata, conferma lo"
+        " step per ricevere il pronostico successivo con la cassa aggiornata!"
     )
 
-    col_sc1, col_sc2 = st.columns(2)
+    # Inizializzazione dello stato della Scalata
+    if "scalata_step_attuale" not in st.session_state:
+      st.session_state["scalata_step_attuale"] = 1
+    if "scalata_cassa_attuale" not in st.session_state:
+      st.session_state["scalata_cassa_attuale"] = 20.0
+    if "scalata_storico" not in st.session_state:
+      st.session_state["scalata_storico"] = []
+
+    col_sc1, col_sc2, col_sc3 = st.columns(3)
     with col_sc1:
-      budget_totale = st.number_input(
-          "Budget Totale (€)",
-          min_value=10.0,
-          max_value=1000.0,
-          value=100.0,
-          step=10.0,
+      budget_iniziale = st.number_input(
+          "Budget Iniziale (€)",
+          min_value=5.0,
+          max_value=500.0,
+          value=20.0,
+          step=5.0,
       )
     with col_sc2:
-      num_vite = st.number_input(
-          "Numero di Vite", min_value=1, max_value=5, value=3
+      st.metric(
+          "Step Attuale", f"STEP {st.session_state['scalata_step_attuale']}"
+      )
+    with col_sc3:
+      st.metric(
+          "Cassa Attuale", f"{st.session_state['scalata_cassa_attuale']:.2f} €"
       )
 
-    num_step = st.slider(
-        "Numero di Step della Scalata:", min_value=3, max_value=8, value=5
+    # Filtra partite imminenti ad alta confidenza
+    partite_cronologiche = sorted(
+        st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
     )
+    candidati = [p for p in partite_cronologiche if p["top_perc"] >= 55.0]
 
-    if st.button("📈 CALCOLA PIANO DI SCALATA AI", key="btn_scalata"):
-      partite_cronologiche = sorted(
-          st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
+    # Escludi partite già giocate negli step precedenti della scalata corrente
+    partite_giocate_set = {
+        item["match"] for item in st.session_state["scalata_storico"]
+    }
+    candidati_disponibili = [
+        p for p in candidati if p["match"] not in partite_giocate_set
+    ]
+
+    st.markdown("---")
+
+    # Mostra lo storico degli step completati
+    if st.session_state["scalata_storico"]:
+      st.markdown("### 📜 Storico Step Vinti:")
+      for h_item in st.session_state["scalata_storico"]:
+        st.markdown(
+            f"✅ **Step {h_item['step']}**: {h_item['match']} ➔"
+            f" **{h_item['pick']}** @{h_item['quota']} | Puntati:"
+            f" {h_item['puntata']:.2f}€ ➔ **Vinti: {h_item['vincita']:.2f}€**"
+        )
+      st.markdown("---")
+
+    if not candidati_disponibili:
+      st.warning(
+          "⚠️ Nessuna partita imminente ad alta confidenza trovata per il"
+          " prossimo step. Scansiona nuovamente il palinsesto o abbassa il"
+          " filtro di confidenza."
       )
-      candidati_scalata = [
-          p for p in partite_cronologiche if p["top_perc"] >= 55.0
-      ]
+    else:
+      prossimo_match = candidati_disponibili[0]
+      quota_prossimo = calcola_quota_reale(prossimo_match["top_perc"])
+      cassa_corrente = st.session_state["scalata_cassa_attuale"]
+      vincita_potenziale = cassa_corrente * quota_prossimo
 
-      partite_scalata = []
-      ultimo_datetime = None
+      st.markdown(
+          "### 🎯 Prossima Giocata Consigliata:"
+      )
+      st.markdown(
+          f"""
+            <div class="scalata-card" style="border-left: 6px solid #10b981; background: rgba(20, 35, 28, 0.95);">
+                <span class="badge-time">⏰ {prossimo_match.get('data', '')} {prossimo_match.get('orario', '15:00')}</span>
+                <span class="badge-league">{prossimo_match.get('lega', '')}</span><br>
+                <h3 style="margin: 10px 0 6px 0; color: #f0fdf4;">{prossimo_match['match']}</h3>
+                📌 Pronostico: <strong style="font-size: 1.2rem; color: #34d399;">{prossimo_match['top_pick']}</strong> (Confidenza: <strong>{prossimo_match['top_perc']:.1f}%</strong>)<br>
+                💵 Puntata Cassa: <strong style="font-size: 1.1rem; color: #ffffff;">{cassa_corrente:.2f} €</strong> @<strong style="color: #fbbf24;">{quota_prossimo:.2f}</strong><br>
+                🏆 Vincita Potenziale: <strong style="font-size: 1.2rem; color: #34d399;">{vincita_potenziale:.2f} €</strong>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
 
-      for cand in candidati_scalata:
-        dt_cand = cand.get("datetime_raw", "")
+      col_act1, col_act2 = st.columns(2)
 
-        if ultimo_datetime is None or dt_cand > ultimo_datetime:
-          partite_scalata.append(cand)
-          ultimo_datetime = dt_cand
+      with col_act1:
+        if st.button("✅ STEP SUPERATO! (Passa al prossimo)"):
+          # Registra nello storico
+          st.session_state["scalata_storico"].append({
+              "step": st.session_state["scalata_step_attuale"],
+              "match": prossimo_match["match"],
+              "pick": prossimo_match["top_pick"],
+              "quota": quota_prossimo,
+              "puntata": cassa_corrente,
+              "vincita": vincita_potenziale,
+          })
+          # Aggiorna stato
+          st.session_state["scalata_cassa_attuale"] = vincita_potenziale
+          st.session_state["scalata_step_attuale"] += 1
+          st.rerun()
 
-        if len(partite_scalata) >= num_step:
-          break
-
-      if len(partite_scalata) < num_step:
-        st.warning(
-            f"Trovate solo {len(partite_scalata)} partite in orari consecutivi"
-            " ad alta confidenza (≥55%) per la scalata. Prova a ridurre il"
-            " numero di step o ampliare il filtro data."
-        )
-      else:
-        cassa_singola_vita = budget_totale / num_vite
-        st.info(
-            f"💰 **Cassa per tentativo (1 Vita):** {cassa_singola_vita:.2f}€"
-            f" ({num_vite} vite totali)"
-        )
-
-        cassa_corrente = cassa_singola_vita
-        st.markdown("### 📋 Marcia di Scalata Sequenziale Consigliata:")
-
-        for step_i, match_s in enumerate(partite_scalata, 1):
-          quota_stimata = calcola_quota_reale(match_s["top_perc"])
-          vincita_step = cassa_corrente * quota_stimata
-
-          st.markdown(
-              f"""
-                    <div class="scalata-card">
-                        <span class="badge-time">⏰ STEP {step_i} — {match_s.get('data', '')} {match_s.get('orario', '15:00')}</span>
-                        <span class="badge-league">{match_s.get('lega', '')}</span><br>
-                        <h4 style="margin: 8px 0 4px 0; color: #f0fdf4;">{match_s['match']}</h4>
-                        👉 Pronostico: <strong>{match_s['top_pick']}</strong> (Confidenza: {match_s['top_perc']:.1f}%)<br>
-                        💵 Puntata: <strong>{cassa_corrente:.2f}€</strong> @{quota_stimata} ➔ Vincita: <strong style="color: #34d399;">{vincita_step:.2f}€</strong>
-                    </div>
-                    """,
-              unsafe_allow_html=True,
-          )
-
-          cassa_corrente = vincita_step
-
-        moltiplicatore_totale = cassa_corrente / cassa_singola_vita
-        st.success(
-            f"🎯 **Obiettivo Finale Scalata:** {cassa_corrente:.2f}€"
-            f" (Moltiplicatore: **x{moltiplicatore_totale:.2f}**)"
-        )
-
+      with col_act2:
+        if st.button("🔄 REIMPOSTA / RICOMINCIA SCALATA"):
+          st.session_state["scalata_step_attuale"] = 1
+          st.session_state["scalata_cassa_attuale"] = float(budget_iniziale)
+          st.session_state["scalata_storico"] = []
+          st.rerun()
   # ---------------------------------------------------------
   # 8. MULTIPLA TOP PICK
   # ---------------------------------------------------------
