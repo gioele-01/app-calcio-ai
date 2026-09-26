@@ -229,29 +229,11 @@ code_map = {
         "away_avg": 1.10,
         "btts_base": 0.50,
     },
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {
-        "key": "soccer_england_league1",
-        "home_avg": 1.38,
-        "away_avg": 1.12,
-        "btts_base": 0.51,
-    },
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {
-        "key": "soccer_england_league2",
-        "home_avg": 1.40,
-        "away_avg": 1.15,
-        "btts_base": 0.52,
-    },
     "🇪🇸 Spagna - La Liga": {
         "key": "soccer_spain_la_liga",
         "home_avg": 1.38,
         "away_avg": 1.08,
         "btts_base": 0.49,
-    },
-    "🇪🇸 Spagna - Segunda Division": {
-        "key": "soccer_spain_segunda_division",
-        "home_avg": 1.25,
-        "away_avg": 0.95,
-        "btts_base": 0.45,
     },
     "🇩🇪 Germania - Bundesliga": {
         "key": "soccer_germany_bundesliga",
@@ -259,29 +241,11 @@ code_map = {
         "away_avg": 1.35,
         "btts_base": 0.59,
     },
-    "🇩🇪 Germania - 2. Bundesliga": {
-        "key": "soccer_germany_bundesliga2",
-        "home_avg": 1.58,
-        "away_avg": 1.30,
-        "btts_base": 0.57,
-    },
-    "🇩🇪 Germania - 3. Liga": {
-        "key": "soccer_germany_liga3",
-        "home_avg": 1.45,
-        "away_avg": 1.20,
-        "btts_base": 0.54,
-    },
     "🇫🇷 Francia - Ligue 1": {
         "key": "soccer_france_ligue_one",
         "home_avg": 1.40,
         "away_avg": 1.10,
         "btts_base": 0.51,
-    },
-    "🇫🇷 Francia - Ligue 2": {
-        "key": "soccer_france_ligue_two",
-        "home_avg": 1.28,
-        "away_avg": 0.98,
-        "btts_base": 0.46,
     },
     "🇳🇱 Olanda - Eredivisie": {
         "key": "soccer_netherlands_eredivisie",
@@ -295,155 +259,11 @@ code_map = {
         "away_avg": 1.18,
         "btts_base": 0.53,
     },
-    "🇧🇪 Belgio - First Div": {
-        "key": "soccer_belgium_first_div",
-        "home_avg": 1.52,
-        "away_avg": 1.22,
-        "btts_base": 0.55,
-    },
-    "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {
-        "key": "soccer_spl",
-        "home_avg": 1.45,
-        "away_avg": 1.15,
-        "btts_base": 0.51,
-    },
-    "🇦🇹 Austria - Bundesliga": {
-        "key": "soccer_austria_bundesliga",
-        "home_avg": 1.50,
-        "away_avg": 1.25,
-        "btts_base": 0.54,
-    },
-    "🇨🇭 Svizzera - Super League": {
-        "key": "soccer_switzerland_superleague",
-        "home_avg": 1.55,
-        "away_avg": 1.28,
-        "btts_base": 0.56,
-    },
-    "🇩🇰 Danimarca - Superliga": {
-        "key": "soccer_denmark_superliga",
-        "home_avg": 1.45,
-        "away_avg": 1.20,
-        "btts_base": 0.53,
-    },
-    "🇸🇪 Svezia - Allsvenskan": {
-        "key": "soccer_sweden_allsvenskan",
-        "home_avg": 1.48,
-        "away_avg": 1.18,
-        "btts_base": 0.53,
-    },
-    "🇸🇪 Svezia - Superettan": {
-        "key": "soccer_sweden_superettan",
-        "home_avg": 1.42,
-        "away_avg": 1.15,
-        "btts_base": 0.52,
-    },
-    "🇳🇴 Norvegia - Eliteserien": {
-        "key": "soccer_norway_eliteserien",
-        "home_avg": 1.60,
-        "away_avg": 1.28,
-        "btts_base": 0.58,
-    },
-    "🇫🇮 Finlandia - Veikkausliiga": {
-        "key": "soccer_finland_veikkausliiga",
-        "home_avg": 1.38,
-        "away_avg": 1.12,
-        "btts_base": 0.50,
-    },
-    "🇵🇱 Polonia - Ekstraklasa": {
-        "key": "soccer_poland_ekstraklasa",
-        "home_avg": 1.40,
-        "away_avg": 1.12,
-        "btts_base": 0.51,
-    },
-    "🇹🇷 Turchia - Super League": {
-        "key": "soccer_turkey_super_league",
-        "home_avg": 1.52,
-        "away_avg": 1.20,
-        "btts_base": 0.55,
-    },
-    "🇬🇷 Grecia - Super League": {
-        "key": "soccer_greece_super_league",
-        "home_avg": 1.38,
-        "away_avg": 1.02,
-        "btts_base": 0.47,
-    },
-    "🇷🇺 Russia - Premier League": {
-        "key": "soccer_russia_premier_league",
-        "home_avg": 1.40,
-        "away_avg": 1.08,
-        "btts_base": 0.49,
-    },
-    "🇧🇷 Brasile - Serie A": {
-        "key": "soccer_brazil_campeonato",
-        "home_avg": 1.48,
-        "away_avg": 1.05,
-        "btts_base": 0.48,
-    },
-    "🇧🇷 Brasile - Serie B": {
-        "key": "soccer_brazil_serie_b",
-        "home_avg": 1.32,
-        "away_avg": 0.88,
-        "btts_base": 0.42,
-    },
-    "🇦🇷 Argentina - Primera Div": {
-        "key": "soccer_argentina_primera_division",
-        "home_avg": 1.25,
-        "away_avg": 0.92,
-        "btts_base": 0.43,
-    },
-    "🇨🇱 Cile - Primera Division": {
-        "key": "soccer_chile_campeonato",
-        "home_avg": 1.40,
-        "away_avg": 1.10,
-        "btts_base": 0.50,
-    },
-    "🇲🇽 Messico - Liga MX": {
-        "key": "soccer_mexico_ligamx",
-        "home_avg": 1.48,
-        "away_avg": 1.15,
-        "btts_base": 0.52,
-    },
-    "🇺🇸 USA - MLS": {
-        "key": "soccer_usa_mls",
-        "home_avg": 1.62,
-        "away_avg": 1.22,
-        "btts_base": 0.57,
-    },
-    "🇯🇵 Giappone - J1 League": {
-        "key": "soccer_japan_j_league",
-        "home_avg": 1.38,
-        "away_avg": 1.15,
-        "btts_base": 0.50,
-    },
-    "🇰🇷 Corea del Sud - K League 1": {
-        "key": "soccer_korea_kleague1",
-        "home_avg": 1.35,
-        "away_avg": 1.10,
-        "btts_base": 0.49,
-    },
-    "🇨🇳 Cina - Super League": {
-        "key": "soccer_china_superleague",
-        "home_avg": 1.50,
-        "away_avg": 1.20,
-        "btts_base": 0.54,
-    },
-    "🇦🇺 Australia - A-League": {
-        "key": "soccer_australia_aleague",
-        "home_avg": 1.58,
-        "away_avg": 1.30,
-        "btts_base": 0.58,
-    },
     "🇪🇺 UEFA Champions League": {
         "key": "soccer_uefa_champs_league",
         "home_avg": 1.60,
         "away_avg": 1.30,
         "btts_base": 0.57,
-    },
-    "🇪🇺 UEFA Champions Qual.": {
-        "key": "soccer_uefa_champs_league_qualification",
-        "home_avg": 1.50,
-        "away_avg": 1.20,
-        "btts_base": 0.54,
     },
     "🇪🇺 UEFA Europa League": {
         "key": "soccer_uefa_europa_league",
@@ -456,30 +276,6 @@ code_map = {
         "home_avg": 1.52,
         "away_avg": 1.22,
         "btts_base": 0.55,
-    },
-    "🇪🇺 UEFA Nations League": {
-        "key": "soccer_uefa_nations_league",
-        "home_avg": 1.45,
-        "away_avg": 1.15,
-        "btts_base": 0.52,
-    },
-    "🌍 Coppa d'Africa (AFCON)": {
-        "key": "soccer_africa_cup_of_nations",
-        "home_avg": 1.30,
-        "away_avg": 0.95,
-        "btts_base": 0.44,
-    },
-    "🌎 Copa Libertadores": {
-        "key": "soccer_conmebol_copa_libertadores",
-        "home_avg": 1.45,
-        "away_avg": 0.98,
-        "btts_base": 0.46,
-    },
-    "🌎 Copa Sudamericana": {
-        "key": "soccer_conmebol_copa_sudamericana",
-        "home_avg": 1.42,
-        "away_avg": 0.95,
-        "btts_base": 0.45,
     },
 }
 
@@ -494,8 +290,6 @@ TOP_LEAGUES_KEYS = [
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
-    ("🇪🇺 Nations League", "soccer_uefa_nations_league"),
-    ("🌍 Coppa d'Africa", "soccer_africa_cup_of_nations"),
 ]
 
 with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
@@ -506,7 +300,6 @@ with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
   sport_key = comp_info["key"]
 
   col_f1, col_f2 = st.columns(2)
-
   with col_f1:
     filtro_data = st.selectbox(
         "📅 Data Eventi",
@@ -516,7 +309,6 @@ with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
             "📅 Intervallo di Date Personalizzato",
         ],
     )
-
   with col_f2:
     mercato_preferito = st.selectbox(
         "🎯 Mercato",
@@ -546,7 +338,6 @@ with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
     )
 
   st.markdown("---")
-
   min_confidence = st.slider(
       "⚡ Confidenza minima (%)",
       min_value=50,
@@ -580,7 +371,7 @@ def scarica_partite_the_odds_api(s_key, key):
 
 
 # ---------------------------------------------------------
-# CALCOLO PROBABILITÀ E MERCATI ESTESI (DEFINIZIONE FUNZIONE)
+# CALCOLO PROBABILITÀ E MERCATI ESTESI
 # ---------------------------------------------------------
 def elab_match_odds(
     match, comp_info, home_shift=0.0, away_shift=0.0, mercato_preferito="Tutti"
@@ -721,68 +512,6 @@ def elab_match_odds(
 
 
 # ---------------------------------------------------------
-# GEMINI SINGLE-MATCH TACTICAL CORRECTOR
-# ---------------------------------------------------------
-def studio_tattico_gemini(match_name, p1_math, px_math, p2_math, key):
-  if not key:
-    return None, "⚠️ Nessuna chiave GEMINI_API_KEY trovata nei Secrets."
-
-  key_clean = key.strip().replace('"', "").replace("'", "")
-
-  prompt = f"""
-    Sei un analista tattico quantitativo di calcio.
-    Il nostro algoritmo ha calcolato per '{match_name}' le probabilità statistiche base:
-    Casa (1): {p1_math:.1f}%, Pareggio (X): {px_math:.1f}%, Ospite (2): {p2_math:.1f}%.
-
-    Valuta attentamente infortuni, turnover, stanchezza da coppe e motivazioni.
-    In base alla tua analisi, stabilisci la variazione percentuale (shift) per le due squadre:
-    - `home_shift`: tra -8.0 e +8.0 per la casa.
-    - `away_shift`: tra -8.0 e +8.0 per l'ospite.
-
-    Rispondi esclusivamente in formato JSON valido con questa struttura esatta:
-    {{
-        "home_shift": 0.0,
-        "away_shift": 0.0,
-        "analisi_sintetica": "Analisi sintetica motivata in 3 frasi..."
-    }}
-    """
-
-  payload = {
-      "contents": [{"parts": [{"text": prompt}]}],
-      "generationConfig": {"response_mime_type": "application/json"},
-  }
-
-  modelli = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-
-  for mod in modelli:
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={key_clean}"
-    for intento in range(3):
-      try:
-        response = requests.post(url, json=payload, timeout=25)
-        if response.status_code == 200:
-          data = response.json()
-          if "candidates" in data and len(data["candidates"]) > 0:
-            text_res = data["candidates"][0]["content"]["parts"][0]["text"]
-            json_match = re.search(r"\{.*\}", text_res, re.DOTALL)
-            if json_match:
-              return json.loads(json_match.group(0)), None
-            return json.loads(text_res), None
-        elif response.status_code in [429, 503]:
-          time.sleep(2.0 * (intento + 1))
-          continue
-        else:
-          break
-      except Exception:
-        time.sleep(1.5)
-        continue
-
-  return (
-      None,
-      "⚠️ Server Gemini momentaneamente occupati. Riprova tra poco.",
-  )
-
-
-# ---------------------------------------------------------
 # GEMINI BATCH CORRECTOR (RATE-LIMIT SAFE)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
@@ -849,28 +578,24 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
                 chunk_successo = True
                 break
           elif response.status_code in [429, 503]:
-            time.sleep(4.0 * (intento + 1))
+            time.sleep(3.5 * (intento + 1))
             continue
           else:
             break
         except Exception:
-          time.sleep(2.5)
+          time.sleep(2.0)
           continue
 
-    time.sleep(3.0)
+    time.sleep(2.0)
 
   if risultati_totali:
     return risultati_totali, None
   else:
-    return (
-        None,
-        "⚠️ Quota API temporaneamente satura. Attendi circa 1 minuto prima"
-        " di riprovare.",
-    )
+    return None, "⚠️ Quota API temporaneamente satura."
 
 
 # ---------------------------------------------------------
-# EXECUTION ENGINE MULTI-LEGA
+# EXECUTION ENGINE MULTI-LEGA (CON ANALISI AI AUTOMATICA INCLUSA)
 # ---------------------------------------------------------
 if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
   if not api_key:
@@ -892,7 +617,9 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
     else:
       leghe_target = [(campionato_scelto, sport_key)]
 
-    with st.spinner("Calcolo probabilità quantitative in corso..."):
+    with st.spinner(
+        "1/2 Calcolo probabilità quantitative base dai bookmaker..."
+    ):
       for l_nome, l_key in leghe_target:
         all_matches, error_msg = scarica_partite_the_odds_api(l_key, api_key)
 
@@ -913,10 +640,8 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
               dt_match_utc = datetime.fromisoformat(
                   raw_date.replace("Z", "+00:00")
               )
-
               if dt_match_utc <= ora_attuale_utc:
                 continue
-
               dt_match_local = dt_match_utc.astimezone(tz_roma)
               orario_str = dt_match_local.strftime("%H:%M")
               match_date_obj = dt_match_local.date()
@@ -976,6 +701,75 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
               raw_matches_dict[nome_match] = m
 
     if partite_analizzate:
+      # AUTOMAZIONE ANALISI TATTICA GEMINI AI SU TUTTE LE PARTITE
+      if gemini_api_key:
+        with st.spinner(
+            "2/2 🧠 Gemini AI sta elaborando lo studio tattico automatico su"
+            " tutto il palinsesto..."
+        ):
+          batch_res, err = studio_tattico_in_blocco_batch(
+              partite_analizzate, gemini_api_key
+          )
+
+          if batch_res and isinstance(batch_res, list):
+            res_map = {
+                item.get("match"): item
+                for item in batch_res
+                if isinstance(item, dict)
+            }
+
+            for p in partite_analizzate:
+              match_key = f"gemini_report_{p['match']}"
+              match_info = res_map.get(p["match"])
+
+              if match_info:
+                h_s = match_info.get("home_shift", 0.0)
+                a_s = match_info.get("away_shift", 0.0)
+                report_txt = (
+                    "🧠 **Studio Tattico AI (Elaborato in automatico):**\n"
+                    f"{match_info.get('analisi_sintetica', '')}\n\n⚡ *Shift"
+                    f" Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%),"
+                    f" Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
+                )
+
+                st.session_state[match_key] = report_txt
+
+                raw_match = raw_matches_dict.get(p["match"])
+                if raw_match:
+                  (
+                      new_pick,
+                      new_perc,
+                      new_p1,
+                      new_px,
+                      new_p2,
+                      new_over,
+                      new_under,
+                      new_goal,
+                      new_ng,
+                      new_matrice,
+                      new_m_estese,
+                  ) = elab_match_odds(
+                      raw_match,
+                      comp_info,
+                      home_shift=h_s,
+                      away_shift=a_s,
+                      mercato_preferito=mercato_preferito,
+                  )
+
+                  casa_team, trasf_team, _ = dettagli_matrici[p["match"]]
+                  dettagli_matrici[p["match"]] = (
+                      casa_team,
+                      trasf_team,
+                      new_matrice,
+                  )
+
+                  p["top_pick"] = new_pick
+                  p["top_perc"] = new_perc
+                  p["p1"], p["px"], p["p2"] = new_p1, new_px, new_p2
+                  p["over"], p["under"] = new_over, new_under
+                  p["goal"], p["no_goal"] = new_goal, new_ng
+                  p["m_estese"] = new_m_estese
+
       st.session_state["partite"] = partite_analizzate
       st.session_state["dettagli_matrici"] = dettagli_matrici
       st.session_state["raw_matches"] = raw_matches_dict
@@ -1086,87 +880,10 @@ if "partite" in st.session_state and st.session_state["partite"]:
       )
 
     st.markdown("---")
-    st.markdown(f"### ⚽ Palinsesto Dettagliato ({len(partite)} Eventi)")
-
-    if st.button("⚡ RICALCOLA TUTTI I MATCH CON GEMINI AI (INSTANT BATCH)"):
-      if not gemini_api_key:
-        st.error(
-            "Inserisci la chiave GEMINI_API_KEY nei Secrets prima di continuare."
-        )
-      else:
-        with st.spinner(
-            "Gemini sta analizzando il contesto tattico di tutto il"
-            " palinsesto..."
-        ):
-          batch_res, err = studio_tattico_in_blocco_batch(
-              partite, gemini_api_key
-          )
-
-          if batch_res and isinstance(batch_res, list):
-            res_map = {
-                item.get("match"): item
-                for item in batch_res
-                if isinstance(item, dict)
-            }
-
-            for p in partite:
-              match_key = f"gemini_report_{p['match']}"
-              match_info = res_map.get(p["match"])
-
-              if match_info:
-                h_s = match_info.get("home_shift", 0.0)
-                a_s = match_info.get("away_shift", 0.0)
-                report_txt = (
-                    "🧠 **Studio Tattico AI:**\n"
-                    f"{match_info.get('analisi_sintetica', '')}\n\n⚡ *Shift"
-                    f" Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%),"
-                    f" Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
-                )
-
-                st.session_state[match_key] = report_txt
-
-                raw_match = raw_m_dict.get(p["match"])
-                if raw_match:
-                  (
-                      new_pick,
-                      new_perc,
-                      new_p1,
-                      new_px,
-                      new_p2,
-                      new_over,
-                      new_under,
-                      new_goal,
-                      new_ng,
-                      new_matrice,
-                      new_m_estese,
-                  ) = elab_match_odds(
-                      raw_match,
-                      comp_info,
-                      home_shift=h_s,
-                      away_shift=a_s,
-                      mercato_preferito=mercato_preferito,
-                  )
-
-                  casa_team, trasf_team, _ = dettagli[p["match"]]
-                  st.session_state["dettagli_matrici"][p["match"]] = (
-                      casa_team,
-                      trasf_team,
-                      new_matrice,
-                  )
-
-                  p["top_pick"] = new_pick
-                  p["top_perc"] = new_perc
-                  p["p1"], p["px"], p["p2"] = new_p1, new_px, new_p2
-                  p["over"], p["under"] = new_over, new_under
-                  p["goal"], p["no_goal"] = new_goal, new_ng
-                  p["m_estese"] = new_m_estese
-
-            st.success("✅ Analisi in blocco completata per tutte le partite!")
-            st.rerun()
-          else:
-            st.error(f"Errore durante l'analisi batch: {err}")
-
-    st.markdown("---")
+    st.markdown(
+        f"### ⚽ Palinsesto Dettagliato Analizzato dall'AI ({len(partite)}"
+        " Eventi)"
+    )
 
     for idx, p in enumerate(partite):
       match_key = f"gemini_report_{p['match']}"
@@ -1237,82 +954,9 @@ if "partite" in st.session_state and st.session_state["partite"]:
         m3.metric("Goal", f"{p['goal']:.1f}%")
         m4.metric("No Goal", f"{p['no_goal']:.1f}%")
 
-        st.markdown("---")
-
         if match_key in st.session_state:
+          st.markdown("---")
           st.info(st.session_state[match_key])
-          if st.button(
-              "🔄 Ripristina Statistica Base", key=f"reload_{idx}_{p['match']}"
-          ):
-            del st.session_state[match_key]
-            st.rerun()
-        else:
-          if st.button(
-              "🧠 Studio Tattico Gemini & Correzione %",
-              key=f"btn_ai_{idx}_{p['match']}",
-          ):
-            if not gemini_api_key:
-              st.error(
-                  "Inserisci la chiave GEMINI_API_KEY nei Secrets o nel campo"
-                  " in alto."
-              )
-            else:
-              with st.spinner("Gemini sta analizzando notizie e formazioni..."):
-                ai_res, err = studio_tattico_gemini(
-                    p["match"], p["p1"], p["px"], p["p2"], gemini_api_key
-                )
-
-                if ai_res:
-                  h_s = ai_res.get("home_shift", 0.0)
-                  a_s = ai_res.get("away_shift", 0.0)
-                  report_txt = (
-                      "🧠 **Studio Tattico AI:**\n"
-                      f"{ai_res.get('analisi_sintetica', '')}\n\n⚡ *Shift"
-                      f" Applicato:* Casa ({'+' if h_s>=0 else ''}{h_s:.1f}%),"
-                      f" Ospite ({'+' if a_s>=0 else ''}{a_s:.1f}%)"
-                  )
-
-                  st.session_state[match_key] = report_txt
-
-                  raw_match = raw_m_dict.get(p["match"])
-                  if raw_match:
-                    (
-                        new_pick,
-                        new_perc,
-                        new_p1,
-                        new_px,
-                        new_p2,
-                        new_over,
-                        new_under,
-                        new_goal,
-                        new_ng,
-                        new_matrice,
-                        new_m_estese,
-                    ) = elab_match_odds(
-                        raw_match,
-                        comp_info,
-                        home_shift=h_s,
-                        away_shift=a_s,
-                        mercato_preferito=mercato_preferito,
-                    )
-
-                    casa_team, trasf_team, _ = dettagli[p["match"]]
-                    st.session_state["dettagli_matrici"][p["match"]] = (
-                        casa_team,
-                        trasf_team,
-                        new_matrice,
-                    )
-
-                    p["top_pick"] = new_pick
-                    p["top_perc"] = new_perc
-                    p["p1"], p["px"], p["p2"] = new_p1, new_px, new_p2
-                    p["over"], p["under"] = new_over, new_under
-                    p["goal"], p["no_goal"] = new_goal, new_ng
-                    p["m_estese"] = new_m_estese
-
-                  st.rerun()
-                else:
-                  st.error(err)
 
   # ---------------------------------------------------------
   # 2. SINGOLA DEL GIORNO
@@ -1321,7 +965,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
     st.subheader("🎯 Singola del Giorno (Quota ~1.80)")
     st.write(
         "L'algoritmo seleziona l'evento con il miglior rapporto"
-        " rischio/rendimento e **quota vicina a 1.80**."
+        " rischio/rendimento e **quota vicina a 1.80** già ottimizzato dall'AI."
     )
 
     target_quota = st.slider(
@@ -1361,8 +1005,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
   elif current_tab == "Doppia":
     st.subheader("👥 Doppia del Giorno (Quota ~2.50)")
     st.write(
-        "L'algoritmo seleziona la **migliore coppia di partite** il cui"
-        " prodotto delle quote sia vicino al raddoppio."
+        "L'algoritmo seleziona la **migliore coppia di partite** con l'analisi"
+        " tattica AI già incorporata."
     )
 
     target_quota_doppia = st.slider(
@@ -1420,7 +1064,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         ) * 100
         st.success(f"""
                 🎯 **QUOTA TOTALE DOPPIA:** **@{q_tot:.2f}**
-                💡 **Probabilità Stimata Combinata:** **{prob_combinata_d:.1f}%**
+                💡 **Probabilità Stimata Combinata AI:** **{prob_combinata_d:.1f}%**
                 """)
 
   # ---------------------------------------------------------
@@ -1429,8 +1073,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
   elif current_tab == "Tripla":
     st.subheader("☘️ Tripla del Giorno (Quota ~5.00)")
     st.write(
-        "L'algoritmo seleziona la **migliore combinazione di 3 partite** per"
-        " raggiungere la quota obiettivo."
+        "L'algoritmo seleziona la **migliore combinazione di 3 partite** con"
+        " analisi AI automatica."
     )
 
     target_quota_tripla = st.slider(
@@ -1497,7 +1141,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
         st.success(f"""
                 🎯 **QUOTA TOTALE TRIPLA:** **@{q_tot:.2f}**
-                💡 **Probabilità Stimata Combinata:** **{prob_combinata_t:.1f}%**
+                💡 **Probabilità Stimata Combinata AI:** **{prob_combinata_t:.1f}%**
                 """)
 
   # ---------------------------------------------------------
@@ -1505,10 +1149,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
   # ---------------------------------------------------------
   elif current_tab == "Mista":
     st.subheader("📊 Mista del Giorno (Quota ~15.00 - 20.00)")
-    st.write(
-        "L'algoritmo crea una **schedina mista ad alta quota** selezionando da"
-        " 4 a 7 eventi bilanciati."
-    )
+    st.write("Schedina mista ad alta quota generata dai dati elaborati dall'AI.")
 
     target_mista = st.slider(
         "Quota Totale Mista desiderata:",
@@ -1524,8 +1165,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
     if len(lista_p) < 4:
       st.warning(
-          "Servono almeno 4 partite nel palinsesto per generare una mista ad"
-          " alta quota."
+          "Servono almeno 4 partite nel palinsesto per generare una mista."
       )
     else:
       mista_selezionata = []
@@ -1577,7 +1217,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         perc_mista_tot = prob_comb_mista * 100
         st.success(f"""
                 🎯 **QUOTA TOTALE MISTA:** **@{q_accumulata:.2f}**
-                💡 **Probabilità Stimata Combinata:** **{perc_mista_tot:.2f}%**
+                💡 **Probabilità Stimata Combinata AI:** **{perc_mista_tot:.2f}%**
                 """)
 
         st.download_button(
@@ -1595,8 +1235,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
   elif current_tab == "Bomba":
     st.subheader("💣 Bomba del Giorno (Quota ~100+)")
     st.write(
-        "L'algoritmo compone una **schedina bomba ad altissimo moltiplicatore**"
-        " accumulando eventi ad alta quota."
+        "Schedina bomba ad altissimo moltiplicatore elaborata con i dati AI."
     )
 
     target_bomba = st.slider(
@@ -1671,7 +1310,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         perc_bomba_tot = prob_comb_bomba * 100
         st.error(f"""
                 🔥 **QUOTA TOTALE BOMBA:** **@{q_bomba_accumulata:.2f}**
-                💡 **Probabilità Stimata Combinata:** **{perc_bomba_tot:.4f}%**
+                💡 **Probabilità Stimata Combinata AI:** **{perc_bomba_tot:.4f}%**
                 """)
 
         st.download_button(
@@ -1684,17 +1323,16 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI (PROGRESSIONE INTERATTIVA STEP-BY-STEP)
+  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP CON AI AUTOMATICA)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
     st.subheader("🚀 Scalata AI Interattiva (Step-by-Step)")
     st.write(
         "L'algoritmo ti propone **un solo evento alla volta** (il più imminente"
-        " e con la massima confidenza). Una volta vinta la giocata, conferma lo"
-        " step per ricevere il pronostico successivo con la cassa aggiornata!"
+        " e ad altissima confidenza AI). Quando la scommessa è vinta, conferma"
+        " lo step per sbloccare la partita successiva!"
     )
 
-    # Inizializzazione dello stato della Scalata
     if "scalata_step_attuale" not in st.session_state:
       st.session_state["scalata_step_attuale"] = 1
     if "scalata_cassa_attuale" not in st.session_state:
@@ -1720,13 +1358,11 @@ if "partite" in st.session_state and st.session_state["partite"]:
           "Cassa Attuale", f"{st.session_state['scalata_cassa_attuale']:.2f} €"
       )
 
-    # Filtra partite imminenti ad alta confidenza
     partite_cronologiche = sorted(
         st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
     )
     candidati = [p for p in partite_cronologiche if p["top_perc"] >= 55.0]
 
-    # Escludi partite già giocate negli step precedenti della scalata corrente
     partite_giocate_set = {
         item["match"] for item in st.session_state["scalata_storico"]
     }
@@ -1736,7 +1372,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
     st.markdown("---")
 
-    # Mostra lo storico degli step completati
     if st.session_state["scalata_storico"]:
       st.markdown("### 📜 Storico Step Vinti:")
       for h_item in st.session_state["scalata_storico"]:
@@ -1750,25 +1385,23 @@ if "partite" in st.session_state and st.session_state["partite"]:
     if not candidati_disponibili:
       st.warning(
           "⚠️ Nessuna partita imminente ad alta confidenza trovata per il"
-          " prossimo step. Scansiona nuovamente il palinsesto o abbassa il"
-          " filtro di confidenza."
+          " prossimo step."
       )
     else:
       prossimo_match = candidati_disponibili[0]
       quota_prossimo = calcola_quota_reale(prossimo_match["top_perc"])
       cassa_corrente = st.session_state["scalata_cassa_attuale"]
       vincita_potenziale = cassa_corrente * quota_prossimo
+      match_key_scalata = f"gemini_report_{prossimo_match['match']}"
 
-      st.markdown(
-          "### 🎯 Prossima Giocata Consigliata:"
-      )
+      st.markdown("### 🎯 Prossima Giocata Consigliata dall'AI:")
       st.markdown(
           f"""
             <div class="scalata-card" style="border-left: 6px solid #10b981; background: rgba(20, 35, 28, 0.95);">
                 <span class="badge-time">⏰ {prossimo_match.get('data', '')} {prossimo_match.get('orario', '15:00')}</span>
                 <span class="badge-league">{prossimo_match.get('lega', '')}</span><br>
                 <h3 style="margin: 10px 0 6px 0; color: #f0fdf4;">{prossimo_match['match']}</h3>
-                📌 Pronostico: <strong style="font-size: 1.2rem; color: #34d399;">{prossimo_match['top_pick']}</strong> (Confidenza: <strong>{prossimo_match['top_perc']:.1f}%</strong>)<br>
+                📌 Pronostico AI: <strong style="font-size: 1.2rem; color: #34d399;">{prossimo_match['top_pick']}</strong> (Confidenza: <strong>{prossimo_match['top_perc']:.1f}%</strong>)<br>
                 💵 Puntata Cassa: <strong style="font-size: 1.1rem; color: #ffffff;">{cassa_corrente:.2f} €</strong> @<strong style="color: #fbbf24;">{quota_prossimo:.2f}</strong><br>
                 🏆 Vincita Potenziale: <strong style="font-size: 1.2rem; color: #34d399;">{vincita_potenziale:.2f} €</strong>
             </div>
@@ -1776,11 +1409,12 @@ if "partite" in st.session_state and st.session_state["partite"]:
           unsafe_allow_html=True,
       )
 
-      col_act1, col_act2 = st.columns(2)
+      if match_key_scalata in st.session_state:
+        st.info(st.session_state[match_key_scalata])
 
+      col_act1, col_act2 = st.columns(2)
       with col_act1:
         if st.button("✅ STEP SUPERATO! (Passa al prossimo)"):
-          # Registra nello storico
           st.session_state["scalata_storico"].append({
               "step": st.session_state["scalata_step_attuale"],
               "match": prossimo_match["match"],
@@ -1789,17 +1423,17 @@ if "partite" in st.session_state and st.session_state["partite"]:
               "puntata": cassa_corrente,
               "vincita": vincita_potenziale,
           })
-          # Aggiorna stato
           st.session_state["scalata_cassa_attuale"] = vincita_potenziale
           st.session_state["scalata_step_attuale"] += 1
           st.rerun()
 
       with col_act2:
-        if st.button("🔄 REIMPOSTA / RICOMINCIA SCALATA"):
+        if st.button("🔄 REIMPOSTA SCALATA"):
           st.session_state["scalata_step_attuale"] = 1
           st.session_state["scalata_cassa_attuale"] = float(budget_iniziale)
           st.session_state["scalata_storico"] = []
           st.rerun()
+
   # ---------------------------------------------------------
   # 8. MULTIPLA TOP PICK
   # ---------------------------------------------------------
@@ -1843,7 +1477,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
       perc_comb_tot = prob_combinata * 100
       st.info(
-          "💡 **Probabilità Stimata Combinata della Multipla:**"
+          "💡 **Probabilità Stimata Combinata AI:**"
           f" {perc_comb_tot:.1f}%"
       )
 
