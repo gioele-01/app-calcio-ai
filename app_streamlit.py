@@ -196,7 +196,7 @@ with st.expander(
     gemini_api_key = st.text_input("Chiave API (Google Gemini)", type="password")
 
 # ---------------------------------------------------------
-# MAPPATURA CAMPIONATI COMPLETA
+# MAPPATURA CAMPIONATI COMPLETA (48 CAMPIONATI E COPPE)
 # ---------------------------------------------------------
 code_map = {
     "🌐 TUTTI I CAMPIONATI PRINCIPALI": {
@@ -229,11 +229,29 @@ code_map = {
         "away_avg": 1.10,
         "btts_base": 0.50,
     },
+    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {
+        "key": "soccer_england_league1",
+        "home_avg": 1.38,
+        "away_avg": 1.12,
+        "btts_base": 0.51,
+    },
+    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {
+        "key": "soccer_england_league2",
+        "home_avg": 1.40,
+        "away_avg": 1.15,
+        "btts_base": 0.52,
+    },
     "🇪🇸 Spagna - La Liga": {
         "key": "soccer_spain_la_liga",
         "home_avg": 1.38,
         "away_avg": 1.08,
         "btts_base": 0.49,
+    },
+    "🇪🇸 Spagna - Segunda Division": {
+        "key": "soccer_spain_segunda_division",
+        "home_avg": 1.25,
+        "away_avg": 0.95,
+        "btts_base": 0.45,
     },
     "🇩🇪 Germania - Bundesliga": {
         "key": "soccer_germany_bundesliga",
@@ -241,11 +259,29 @@ code_map = {
         "away_avg": 1.35,
         "btts_base": 0.59,
     },
+    "🇩🇪 Germania - 2. Bundesliga": {
+        "key": "soccer_germany_bundesliga2",
+        "home_avg": 1.58,
+        "away_avg": 1.30,
+        "btts_base": 0.57,
+    },
+    "🇩🇪 Germania - 3. Liga": {
+        "key": "soccer_germany_liga3",
+        "home_avg": 1.45,
+        "away_avg": 1.20,
+        "btts_base": 0.54,
+    },
     "🇫🇷 Francia - Ligue 1": {
         "key": "soccer_france_ligue_one",
         "home_avg": 1.40,
         "away_avg": 1.10,
         "btts_base": 0.51,
+    },
+    "🇫🇷 Francia - Ligue 2": {
+        "key": "soccer_france_ligue_two",
+        "home_avg": 1.28,
+        "away_avg": 0.98,
+        "btts_base": 0.46,
     },
     "🇳🇱 Olanda - Eredivisie": {
         "key": "soccer_netherlands_eredivisie",
@@ -259,11 +295,155 @@ code_map = {
         "away_avg": 1.18,
         "btts_base": 0.53,
     },
+    "🇧🇪 Belgio - First Div": {
+        "key": "soccer_belgium_first_div",
+        "home_avg": 1.52,
+        "away_avg": 1.22,
+        "btts_base": 0.55,
+    },
+    "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {
+        "key": "soccer_spl",
+        "home_avg": 1.45,
+        "away_avg": 1.15,
+        "btts_base": 0.51,
+    },
+    "🇦🇹 Austria - Bundesliga": {
+        "key": "soccer_austria_bundesliga",
+        "home_avg": 1.50,
+        "away_avg": 1.25,
+        "btts_base": 0.54,
+    },
+    "🇨🇭 Svizzera - Super League": {
+        "key": "soccer_switzerland_superleague",
+        "home_avg": 1.55,
+        "away_avg": 1.28,
+        "btts_base": 0.56,
+    },
+    "🇩🇰 Danimarca - Superliga": {
+        "key": "soccer_denmark_superliga",
+        "home_avg": 1.45,
+        "away_avg": 1.20,
+        "btts_base": 0.53,
+    },
+    "🇸🇪 Svezia - Allsvenskan": {
+        "key": "soccer_sweden_allsvenskan",
+        "home_avg": 1.48,
+        "away_avg": 1.18,
+        "btts_base": 0.53,
+    },
+    "🇸🇪 Svezia - Superettan": {
+        "key": "soccer_sweden_superettan",
+        "home_avg": 1.42,
+        "away_avg": 1.15,
+        "btts_base": 0.52,
+    },
+    "🇳🇴 Norvegia - Eliteserien": {
+        "key": "soccer_norway_eliteserien",
+        "home_avg": 1.60,
+        "away_avg": 1.28,
+        "btts_base": 0.58,
+    },
+    "🇫🇮 Finlandia - Veikkausliiga": {
+        "key": "soccer_finland_veikkausliiga",
+        "home_avg": 1.38,
+        "away_avg": 1.12,
+        "btts_base": 0.50,
+    },
+    "🇵🇱 Polonia - Ekstraklasa": {
+        "key": "soccer_poland_ekstraklasa",
+        "home_avg": 1.40,
+        "away_avg": 1.12,
+        "btts_base": 0.51,
+    },
+    "🇹🇷 Turchia - Super League": {
+        "key": "soccer_turkey_super_league",
+        "home_avg": 1.52,
+        "away_avg": 1.20,
+        "btts_base": 0.55,
+    },
+    "🇬🇷 Grecia - Super League": {
+        "key": "soccer_greece_super_league",
+        "home_avg": 1.38,
+        "away_avg": 1.02,
+        "btts_base": 0.47,
+    },
+    "🇷🇺 Russia - Premier League": {
+        "key": "soccer_russia_premier_league",
+        "home_avg": 1.40,
+        "away_avg": 1.08,
+        "btts_base": 0.49,
+    },
+    "🇧🇷 Brasile - Serie A": {
+        "key": "soccer_brazil_campeonato",
+        "home_avg": 1.48,
+        "away_avg": 1.05,
+        "btts_base": 0.48,
+    },
+    "🇧🇷 Brasile - Serie B": {
+        "key": "soccer_brazil_serie_b",
+        "home_avg": 1.32,
+        "away_avg": 0.88,
+        "btts_base": 0.42,
+    },
+    "🇦🇷 Argentina - Primera Div": {
+        "key": "soccer_argentina_primera_division",
+        "home_avg": 1.25,
+        "away_avg": 0.92,
+        "btts_base": 0.43,
+    },
+    "🇨🇱 Cile - Primera Division": {
+        "key": "soccer_chile_campeonato",
+        "home_avg": 1.40,
+        "away_avg": 1.10,
+        "btts_base": 0.50,
+    },
+    "🇲🇽 Messico - Liga MX": {
+        "key": "soccer_mexico_ligamx",
+        "home_avg": 1.48,
+        "away_avg": 1.15,
+        "btts_base": 0.52,
+    },
+    "🇺🇸 USA - MLS": {
+        "key": "soccer_usa_mls",
+        "home_avg": 1.62,
+        "away_avg": 1.22,
+        "btts_base": 0.57,
+    },
+    "🇯🇵 Giappone - J1 League": {
+        "key": "soccer_japan_j_league",
+        "home_avg": 1.38,
+        "away_avg": 1.15,
+        "btts_base": 0.50,
+    },
+    "🇰🇷 Corea del Sud - K League 1": {
+        "key": "soccer_korea_kleague1",
+        "home_avg": 1.35,
+        "away_avg": 1.10,
+        "btts_base": 0.49,
+    },
+    "🇨🇳 Cina - Super League": {
+        "key": "soccer_china_superleague",
+        "home_avg": 1.50,
+        "away_avg": 1.20,
+        "btts_base": 0.54,
+    },
+    "🇦🇺 Australia - A-League": {
+        "key": "soccer_australia_aleague",
+        "home_avg": 1.58,
+        "away_avg": 1.30,
+        "btts_base": 0.58,
+    },
     "🇪🇺 UEFA Champions League": {
         "key": "soccer_uefa_champs_league",
         "home_avg": 1.60,
         "away_avg": 1.30,
         "btts_base": 0.57,
+    },
+    "🇪🇺 UEFA Champions Qual.": {
+        "key": "soccer_uefa_champs_league_qualification",
+        "home_avg": 1.50,
+        "away_avg": 1.20,
+        "btts_base": 0.54,
     },
     "🇪🇺 UEFA Europa League": {
         "key": "soccer_uefa_europa_league",
@@ -276,6 +456,30 @@ code_map = {
         "home_avg": 1.52,
         "away_avg": 1.22,
         "btts_base": 0.55,
+    },
+    "🇪🇺 UEFA Nations League": {
+        "key": "soccer_uefa_nations_league",
+        "home_avg": 1.45,
+        "away_avg": 1.15,
+        "btts_base": 0.52,
+    },
+    "🌍 Coppa d'Africa (AFCON)": {
+        "key": "soccer_africa_cup_of_nations",
+        "home_avg": 1.30,
+        "away_avg": 0.95,
+        "btts_base": 0.44,
+    },
+    "🌎 Copa Libertadores": {
+        "key": "soccer_conmebol_copa_libertadores",
+        "home_avg": 1.45,
+        "away_avg": 0.98,
+        "btts_base": 0.46,
+    },
+    "🌎 Copa Sudamericana": {
+        "key": "soccer_conmebol_copa_sudamericana",
+        "home_avg": 1.42,
+        "away_avg": 0.95,
+        "btts_base": 0.45,
     },
 }
 
@@ -290,6 +494,8 @@ TOP_LEAGUES_KEYS = [
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
+    ("🇪🇺 Nations League", "soccer_uefa_nations_league"),
+    ("🌍 Coppa d'Africa", "soccer_africa_cup_of_nations"),
 ]
 
 with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
@@ -512,7 +718,7 @@ def elab_match_odds(
 
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (RATE-LIMIT SAFE)
+# GEMINI BATCH CORRECTOR (RATE-LIMIT SAFE CON RETRY)
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
   if not key:
@@ -701,7 +907,6 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
               raw_matches_dict[nome_match] = m
 
     if partite_analizzate:
-      # AUTOMAZIONE ANALISI TATTICA GEMINI AI SU TUTTE LE PARTITE
       if gemini_api_key:
         with st.spinner(
             "2/2 🧠 Gemini AI sta elaborando lo studio tattico automatico su"
