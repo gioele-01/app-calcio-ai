@@ -1,0 +1,14 @@
+{
+  "step": 2,
+  "cassa": 26.0,
+  "storico": [
+    {
+      "step": 1,
+      "match": "Albania vs Latvia",
+      "pick": "1",
+      "quota": 1.60,
+      "puntata": 5.0,
+      "vincita": 8.0
+    }
+  ]
+}
