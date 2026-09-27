@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -152,6 +153,29 @@ st.markdown(
 )
 
 MARGINE_BOOKMAKER = 1.05
+SCALATA_FILE = "scalata_save.json"
+
+
+# ---------------------------------------------------------
+# FUNZIONI DI GESTIONE SALVATAGGIO SCALATA SU DISCO
+# ---------------------------------------------------------
+def salva_stato_scalata(step, cassa, storico):
+  data = {"step": step, "cassa": cassa, "storico": storico}
+  try:
+    with open(SCALATA_FILE, "w", encoding="utf-8") as f:
+      json.dump(data, f, ensure_ascii=False, indent=2)
+  except Exception as e:
+    st.error(f"Errore nel salvataggio della scalata: {e}")
+
+
+def carica_stato_scalata():
+  if os.path.exists(SCALATA_FILE):
+    try:
+      with open(SCALATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+    except Exception:
+      return None
+  return None
 
 
 def calcola_quota_reale(prob_percentuale):
@@ -196,7 +220,7 @@ with st.expander(
     gemini_api_key = st.text_input("Chiave API (Google Gemini)", type="password")
 
 # ---------------------------------------------------------
-# MAPPATURA CAMPIONATI COMPLETA (48 CAMPIONATI E COPPE)
+# MAPPATURA CAMPIONATI COMPLETA
 # ---------------------------------------------------------
 code_map = {
     "🌐 TUTTI I CAMPIONATI PRINCIPALI": {
@@ -307,7 +331,7 @@ code_map = {
         "away_avg": 1.15,
         "btts_base": 0.51,
     },
-    "🇦🇹 Austria - Bundesliga": {
+    "🇦TZ Austria - Bundesliga": {
         "key": "soccer_austria_bundesliga",
         "home_avg": 1.50,
         "away_avg": 1.25,
@@ -490,7 +514,7 @@ TOP_LEAGUES_KEYS = [
     ("🇩🇪 Bundesliga", "soccer_germany_bundesliga"),
     ("🇫🇷 Ligue 1", "soccer_france_ligue_one"),
     ("🇳🇱 Eredivisie", "soccer_netherlands_eredivisie"),
-    ("🇵🇹 Primeira Liga", "soccer_portugal_primeira_liga"),
+    ("🇵TOG Primeira Liga", "soccer_portugal_primeira_liga"),
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
@@ -1528,22 +1552,29 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP CON AI AUTOMATICA)
+  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP CON SALVATAGGIO SU DISCO)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
     st.subheader("🚀 Scalata AI Interattiva (Step-by-Step)")
     st.write(
-        "L'algoritmo ti propone **un solo evento alla volta** (il più imminente"
-        " e ad altissima confidenza AI). Quando la scommessa è vinta, conferma"
-        " lo step per sbloccare la partita successiva!"
+        "L'algoritmo ti propone **un solo evento alla volta**. I tuoi progressi"
+        " **vengono salvati automaticamente** e rimangono conservati anche se"
+        " chiudi il browser!"
     )
 
+    # Inizializzazione con caricamento automatico da disco
     if "scalata_step_attuale" not in st.session_state:
-      st.session_state["scalata_step_attuale"] = 1
-    if "scalata_cassa_attuale" not in st.session_state:
-      st.session_state["scalata_cassa_attuale"] = 20.0
-    if "scalata_storico" not in st.session_state:
-      st.session_state["scalata_storico"] = []
+      saved_data = carica_stato_scalata()
+      if saved_data:
+        st.session_state["scalata_step_attuale"] = saved_data.get("step", 1)
+        st.session_state["scalata_cassa_attuale"] = saved_data.get(
+            "cassa", 20.0
+        )
+        st.session_state["scalata_storico"] = saved_data.get("storico", [])
+      else:
+        st.session_state["scalata_step_attuale"] = 1
+        st.session_state["scalata_cassa_attuale"] = 20.0
+        st.session_state["scalata_storico"] = []
 
     col_sc1, col_sc2, col_sc3 = st.columns(3)
     with col_sc1:
@@ -1630,6 +1661,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
           })
           st.session_state["scalata_cassa_attuale"] = vincita_potenziale
           st.session_state["scalata_step_attuale"] += 1
+
+          # Salva su file locale
+          salva_stato_scalata(
+              st.session_state["scalata_step_attuale"],
+              st.session_state["scalata_cassa_attuale"],
+              st.session_state["scalata_storico"],
+          )
           st.rerun()
 
       with col_act2:
@@ -1637,6 +1675,10 @@ if "partite" in st.session_state and st.session_state["partite"]:
           st.session_state["scalata_step_attuale"] = 1
           st.session_state["scalata_cassa_attuale"] = float(budget_iniziale)
           st.session_state["scalata_storico"] = []
+
+          # Rimuovi file di salvataggio
+          if os.path.exists(SCALATA_FILE):
+            os.remove(SCALATA_FILE)
           st.rerun()
 
   # ---------------------------------------------------------
