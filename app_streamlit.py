@@ -159,8 +159,13 @@ SCALATA_FILE = "scalata_save.json"
 # ---------------------------------------------------------
 # FUNZIONI DI GESTIONE SALVATAGGIO SCALATA SU DISCO
 # ---------------------------------------------------------
-def salva_stato_scalata(step, cassa, storico):
-  data = {"step": step, "cassa": cassa, "storico": storico}
+def salva_stato_scalata(step, cassa, storico, match_bloccato=None):
+  data = {
+      "step": step,
+      "cassa": cassa,
+      "storico": storico,
+      "match_bloccato": match_bloccato,
+  }
   try:
     with open(SCALATA_FILE, "w", encoding="utf-8") as f:
       json.dump(data, f, ensure_ascii=False, indent=2)
@@ -220,7 +225,7 @@ with st.expander(
     gemini_api_key = st.text_input("Chiave API (Google Gemini)", type="password")
 
 # ---------------------------------------------------------
-# MAPPATURA CAMPIONATI COMPLETA
+# MAPPATURA CAMPIONATI COMPLETA (48 CAMPIONATI)
 # ---------------------------------------------------------
 code_map = {
     "🌐 TUTTI I CAMPIONATI PRINCIPALI": {
@@ -331,7 +336,7 @@ code_map = {
         "away_avg": 1.15,
         "btts_base": 0.51,
     },
-    "🇦TZ Austria - Bundesliga": {
+    "🇦🇹 Austria - Bundesliga": {
         "key": "soccer_austria_bundesliga",
         "home_avg": 1.50,
         "away_avg": 1.25,
@@ -514,7 +519,7 @@ TOP_LEAGUES_KEYS = [
     ("🇩🇪 Bundesliga", "soccer_germany_bundesliga"),
     ("🇫🇷 Ligue 1", "soccer_france_ligue_one"),
     ("🇳🇱 Eredivisie", "soccer_netherlands_eredivisie"),
-    ("🇵TOG Primeira Liga", "soccer_portugal_primeira_liga"),
+    ("🇵🇹 Primeira Liga", "soccer_portugal_primeira_liga"),
     ("🇪🇺 Champions League", "soccer_uefa_champs_league"),
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
@@ -1552,17 +1557,17 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP CON SALVATAGGIO SU DISCO)
+  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP CON MATCH BLOCCATO)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
     st.subheader("🚀 Scalata AI Interattiva (Step-by-Step)")
     st.write(
-        "L'algoritmo ti propone **un solo evento alla volta**. I tuoi progressi"
-        " **vengono salvati automaticamente** e rimangono conservati anche se"
-        " chiudi il browser!"
+        "L'algoritmo ti propone **un solo evento alla volta**. Quando trovi il"
+        " match giusto, **bloccalo** per conservarlo fino alla fine della"
+        " partita!"
     )
 
-    # Inizializzazione con caricamento automatico da disco
+    # Caricamento dello stato saved
     if "scalata_step_attuale" not in st.session_state:
       saved_data = carica_stato_scalata()
       if saved_data:
@@ -1571,10 +1576,17 @@ if "partite" in st.session_state and st.session_state["partite"]:
             "cassa", 20.0
         )
         st.session_state["scalata_storico"] = saved_data.get("storico", [])
+        st.session_state["scalata_match_bloccato"] = saved_data.get(
+            "match_bloccato", None
+        )
       else:
         st.session_state["scalata_step_attuale"] = 1
         st.session_state["scalata_cassa_attuale"] = 20.0
         st.session_state["scalata_storico"] = []
+        st.session_state["scalata_match_bloccato"] = None
+
+    if "scalata_match_bloccato" not in st.session_state:
+      st.session_state["scalata_match_bloccato"] = None
 
     col_sc1, col_sc2, col_sc3 = st.columns(3)
     with col_sc1:
@@ -1594,20 +1606,9 @@ if "partite" in st.session_state and st.session_state["partite"]:
           "Cassa Attuale", f"{st.session_state['scalata_cassa_attuale']:.2f} €"
       )
 
-    partite_cronologiche = sorted(
-        st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
-    )
-    candidati = [p for p in partite_cronologiche if p["top_perc"] >= 55.0]
-
-    partite_giocate_set = {
-        item["match"] for item in st.session_state["scalata_storico"]
-    }
-    candidati_disponibili = [
-        p for p in candidati if p["match"] not in partite_giocate_set
-    ]
-
     st.markdown("---")
 
+    # Mostra storico
     if st.session_state["scalata_storico"]:
       st.markdown("### 📜 Storico Step Vinti:")
       for h_item in st.session_state["scalata_storico"]:
@@ -1618,26 +1619,51 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
       st.markdown("---")
 
-    if not candidati_disponibili:
+    # Determina quale match mostrare (se bloccato o nuovo)
+    match_da_mostrare = None
+    is_bloccato = False
+
+    if st.session_state["scalata_match_bloccato"] is not None:
+      match_da_mostrare = st.session_state["scalata_match_bloccato"]
+      is_bloccato = True
+    else:
+      partite_cronologiche = sorted(
+          st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
+      )
+      candidati = [p for p in partite_cronologiche if p["top_perc"] >= 55.0]
+      partite_giocate_set = {
+          item["match"] for item in st.session_state["scalata_storico"]
+      }
+      candidati_disponibili = [
+          p for p in candidati if p["match"] not in partite_giocate_set
+      ]
+
+      if candidati_disponibili:
+        match_da_mostrare = candidati_disponibili[0]
+
+    if not match_da_mostrare:
       st.warning(
           "⚠️ Nessuna partita imminente ad alta confidenza trovata per il"
           " prossimo step."
       )
     else:
-      prossimo_match = candidati_disponibili[0]
-      quota_prossimo = calcola_quota_reale(prossimo_match["top_perc"])
+      quota_prossimo = match_da_mostrare.get(
+          "quota_fissa", calcola_quota_reale(match_da_mostrare["top_perc"])
+      )
       cassa_corrente = st.session_state["scalata_cassa_attuale"]
       vincita_potenziale = cassa_corrente * quota_prossimo
-      match_key_scalata = f"gemini_report_{prossimo_match['match']}"
+      match_key_scalata = f"gemini_report_{match_da_mostrare['match']}"
 
-      st.markdown("### 🎯 Prossima Giocata Consigliata dall'AI:")
+      st.markdown(
+          f"### 🎯 Partita {'BLOCCATA 📌' if is_bloccato else 'Consigliata dall\'AI'}:"
+      )
       st.markdown(
           f"""
-            <div class="scalata-card" style="border-left: 6px solid #10b981; background: rgba(20, 35, 28, 0.95);">
-                <span class="badge-time">⏰ {prossimo_match.get('data', '')} {prossimo_match.get('orario', '15:00')}</span>
-                <span class="badge-league">{prossimo_match.get('lega', '')}</span><br>
-                <h3 style="margin: 10px 0 6px 0; color: #f0fdf4;">{prossimo_match['match']}</h3>
-                📌 Pronostico AI: <strong style="font-size: 1.2rem; color: #34d399;">{prossimo_match['top_pick']}</strong> (Confidenza: <strong>{prossimo_match['top_perc']:.1f}%</strong>)<br>
+            <div class="scalata-card" style="border-left: 6px solid {'#f59e0b' if is_bloccato else '#10b981'}; background: rgba(20, 35, 28, 0.95);">
+                <span class="badge-time">⏰ {match_da_mostrare.get('data', '')} {match_da_mostrare.get('orario', '15:00')}</span>
+                <span class="badge-league">{match_da_mostrare.get('lega', '')}</span><br>
+                <h3 style="margin: 10px 0 6px 0; color: #f0fdf4;">{match_da_mostrare['match']}</h3>
+                📌 Pronostico AI: <strong style="font-size: 1.2rem; color: #34d399;">{match_da_mostrare['top_pick']}</strong> (Confidenza: <strong>{match_da_mostrare['top_perc']:.1f}%</strong>)<br>
                 💵 Puntata Cassa: <strong style="font-size: 1.1rem; color: #ffffff;">{cassa_corrente:.2f} €</strong> @<strong style="color: #fbbf24;">{quota_prossimo:.2f}</strong><br>
                 🏆 Vincita Potenziale: <strong style="font-size: 1.2rem; color: #34d399;">{vincita_potenziale:.2f} €</strong>
             </div>
@@ -1648,25 +1674,56 @@ if "partite" in st.session_state and st.session_state["partite"]:
       if match_key_scalata in st.session_state:
         st.info(st.session_state[match_key_scalata])
 
+      # Pulsanti per Bloccare / Sbloccare / Superare lo Step
+      col_block1, col_block2 = st.columns(2)
+
+      with col_block1:
+        if not is_bloccato:
+          if st.button("📌 BLOCCA QUESTO MATCH PER LO STEP"):
+            match_da_mostrare["quota_fissa"] = quota_prossimo
+            st.session_state["scalata_match_bloccato"] = match_da_mostrare
+            salva_stato_scalata(
+                st.session_state["scalata_step_attuale"],
+                st.session_state["scalata_cassa_attuale"],
+                st.session_state["scalata_storico"],
+                match_bloccato=match_da_mostrare,
+            )
+            st.rerun()
+        else:
+          if st.button("🔓 SBLOCCA / CAMBIA MATCH"):
+            st.session_state["scalata_match_bloccato"] = None
+            salva_stato_scalata(
+                st.session_state["scalata_step_attuale"],
+                st.session_state["scalata_cassa_attuale"],
+                st.session_state["scalata_storico"],
+                match_bloccato=None,
+            )
+            st.rerun()
+
+      st.markdown("---")
       col_act1, col_act2 = st.columns(2)
+
       with col_act1:
         if st.button("✅ STEP SUPERATO! (Passa al prossimo)"):
           st.session_state["scalata_storico"].append({
               "step": st.session_state["scalata_step_attuale"],
-              "match": prossimo_match["match"],
-              "pick": prossimo_match["top_pick"],
+              "match": match_da_mostrare["match"],
+              "pick": match_da_mostrare["top_pick"],
               "quota": quota_prossimo,
               "puntata": cassa_corrente,
               "vincita": vincita_potenziale,
           })
           st.session_state["scalata_cassa_attuale"] = vincita_potenziale
           st.session_state["scalata_step_attuale"] += 1
+          st.session_state["scalata_match_bloccato"] = (
+              None  # Libera il match per lo step successivo
+          )
 
-          # Salva su file locale
           salva_stato_scalata(
               st.session_state["scalata_step_attuale"],
               st.session_state["scalata_cassa_attuale"],
               st.session_state["scalata_storico"],
+              match_bloccato=None,
           )
           st.rerun()
 
@@ -1675,8 +1732,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
           st.session_state["scalata_step_attuale"] = 1
           st.session_state["scalata_cassa_attuale"] = float(budget_iniziale)
           st.session_state["scalata_storico"] = []
+          st.session_state["scalata_match_bloccato"] = None
 
-          # Rimuovi file di salvataggio
           if os.path.exists(SCALATA_FILE):
             os.remove(SCALATA_FILE)
           st.rerun()
