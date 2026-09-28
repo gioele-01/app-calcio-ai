@@ -225,7 +225,7 @@ with st.expander(
     gemini_api_key = st.text_input("Chiave API (Google Gemini)", type="password")
 
 # ---------------------------------------------------------
-# MAPPATURA CAMPIONATI COMPLETA (48 CAMPIONATI)
+# MAPPATURA CAMPIONATI COMPLETA
 # ---------------------------------------------------------
 code_map = {
     "🌐 TUTTI I CAMPIONATI PRINCIPALI": {
@@ -258,29 +258,11 @@ code_map = {
         "away_avg": 1.10,
         "btts_base": 0.50,
     },
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League One": {
-        "key": "soccer_england_league1",
-        "home_avg": 1.38,
-        "away_avg": 1.12,
-        "btts_base": 0.51,
-    },
-    "🏴󠁧󠁢󠁥󠁮󠁧󠁿 Inghilterra - League Two": {
-        "key": "soccer_england_league2",
-        "home_avg": 1.40,
-        "away_avg": 1.15,
-        "btts_base": 0.52,
-    },
     "🇪🇸 Spagna - La Liga": {
         "key": "soccer_spain_la_liga",
         "home_avg": 1.38,
         "away_avg": 1.08,
         "btts_base": 0.49,
-    },
-    "🇪🇸 Spagna - Segunda Division": {
-        "key": "soccer_spain_segunda_division",
-        "home_avg": 1.25,
-        "away_avg": 0.95,
-        "btts_base": 0.45,
     },
     "🇩🇪 Germania - Bundesliga": {
         "key": "soccer_germany_bundesliga",
@@ -288,29 +270,11 @@ code_map = {
         "away_avg": 1.35,
         "btts_base": 0.59,
     },
-    "🇩🇪 Germania - 2. Bundesliga": {
-        "key": "soccer_germany_bundesliga2",
-        "home_avg": 1.58,
-        "away_avg": 1.30,
-        "btts_base": 0.57,
-    },
-    "🇩🇪 Germania - 3. Liga": {
-        "key": "soccer_germany_liga3",
-        "home_avg": 1.45,
-        "away_avg": 1.20,
-        "btts_base": 0.54,
-    },
     "🇫🇷 Francia - Ligue 1": {
         "key": "soccer_france_ligue_one",
         "home_avg": 1.40,
         "away_avg": 1.10,
         "btts_base": 0.51,
-    },
-    "🇫🇷 Francia - Ligue 2": {
-        "key": "soccer_france_ligue_two",
-        "home_avg": 1.28,
-        "away_avg": 0.98,
-        "btts_base": 0.46,
     },
     "🇳🇱 Olanda - Eredivisie": {
         "key": "soccer_netherlands_eredivisie",
@@ -324,155 +288,11 @@ code_map = {
         "away_avg": 1.18,
         "btts_base": 0.53,
     },
-    "🇧🇪 Belgio - First Div": {
-        "key": "soccer_belgium_first_div",
-        "home_avg": 1.52,
-        "away_avg": 1.22,
-        "btts_base": 0.55,
-    },
-    "🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scozia - Premiership": {
-        "key": "soccer_spl",
-        "home_avg": 1.45,
-        "away_avg": 1.15,
-        "btts_base": 0.51,
-    },
-    "🇦🇹 Austria - Bundesliga": {
-        "key": "soccer_austria_bundesliga",
-        "home_avg": 1.50,
-        "away_avg": 1.25,
-        "btts_base": 0.54,
-    },
-    "🇨🇭 Svizzera - Super League": {
-        "key": "soccer_switzerland_superleague",
-        "home_avg": 1.55,
-        "away_avg": 1.28,
-        "btts_base": 0.56,
-    },
-    "🇩🇰 Danimarca - Superliga": {
-        "key": "soccer_denmark_superliga",
-        "home_avg": 1.45,
-        "away_avg": 1.20,
-        "btts_base": 0.53,
-    },
-    "🇸🇪 Svezia - Allsvenskan": {
-        "key": "soccer_sweden_allsvenskan",
-        "home_avg": 1.48,
-        "away_avg": 1.18,
-        "btts_base": 0.53,
-    },
-    "🇸🇪 Svezia - Superettan": {
-        "key": "soccer_sweden_superettan",
-        "home_avg": 1.42,
-        "away_avg": 1.15,
-        "btts_base": 0.52,
-    },
-    "🇳🇴 Norvegia - Eliteserien": {
-        "key": "soccer_norway_eliteserien",
-        "home_avg": 1.60,
-        "away_avg": 1.28,
-        "btts_base": 0.58,
-    },
-    "🇫🇮 Finlandia - Veikkausliiga": {
-        "key": "soccer_finland_veikkausliiga",
-        "home_avg": 1.38,
-        "away_avg": 1.12,
-        "btts_base": 0.50,
-    },
-    "🇵🇱 Polonia - Ekstraklasa": {
-        "key": "soccer_poland_ekstraklasa",
-        "home_avg": 1.40,
-        "away_avg": 1.12,
-        "btts_base": 0.51,
-    },
-    "🇹🇷 Turchia - Super League": {
-        "key": "soccer_turkey_super_league",
-        "home_avg": 1.52,
-        "away_avg": 1.20,
-        "btts_base": 0.55,
-    },
-    "🇬🇷 Grecia - Super League": {
-        "key": "soccer_greece_super_league",
-        "home_avg": 1.38,
-        "away_avg": 1.02,
-        "btts_base": 0.47,
-    },
-    "🇷🇺 Russia - Premier League": {
-        "key": "soccer_russia_premier_league",
-        "home_avg": 1.40,
-        "away_avg": 1.08,
-        "btts_base": 0.49,
-    },
-    "🇧🇷 Brasile - Serie A": {
-        "key": "soccer_brazil_campeonato",
-        "home_avg": 1.48,
-        "away_avg": 1.05,
-        "btts_base": 0.48,
-    },
-    "🇧🇷 Brasile - Serie B": {
-        "key": "soccer_brazil_serie_b",
-        "home_avg": 1.32,
-        "away_avg": 0.88,
-        "btts_base": 0.42,
-    },
-    "🇦🇷 Argentina - Primera Div": {
-        "key": "soccer_argentina_primera_division",
-        "home_avg": 1.25,
-        "away_avg": 0.92,
-        "btts_base": 0.43,
-    },
-    "🇨🇱 Cile - Primera Division": {
-        "key": "soccer_chile_campeonato",
-        "home_avg": 1.40,
-        "away_avg": 1.10,
-        "btts_base": 0.50,
-    },
-    "🇲🇽 Messico - Liga MX": {
-        "key": "soccer_mexico_ligamx",
-        "home_avg": 1.48,
-        "away_avg": 1.15,
-        "btts_base": 0.52,
-    },
-    "🇺🇸 USA - MLS": {
-        "key": "soccer_usa_mls",
-        "home_avg": 1.62,
-        "away_avg": 1.22,
-        "btts_base": 0.57,
-    },
-    "🇯🇵 Giappone - J1 League": {
-        "key": "soccer_japan_j_league",
-        "home_avg": 1.38,
-        "away_avg": 1.15,
-        "btts_base": 0.50,
-    },
-    "🇰🇷 Corea del Sud - K League 1": {
-        "key": "soccer_korea_kleague1",
-        "home_avg": 1.35,
-        "away_avg": 1.10,
-        "btts_base": 0.49,
-    },
-    "🇨🇳 Cina - Super League": {
-        "key": "soccer_china_superleague",
-        "home_avg": 1.50,
-        "away_avg": 1.20,
-        "btts_base": 0.54,
-    },
-    "🇦🇺 Australia - A-League": {
-        "key": "soccer_australia_aleague",
-        "home_avg": 1.58,
-        "away_avg": 1.30,
-        "btts_base": 0.58,
-    },
     "🇪🇺 UEFA Champions League": {
         "key": "soccer_uefa_champs_league",
         "home_avg": 1.60,
         "away_avg": 1.30,
         "btts_base": 0.57,
-    },
-    "🇪🇺 UEFA Champions Qual.": {
-        "key": "soccer_uefa_champs_league_qualification",
-        "home_avg": 1.50,
-        "away_avg": 1.20,
-        "btts_base": 0.54,
     },
     "🇪🇺 UEFA Europa League": {
         "key": "soccer_uefa_europa_league",
@@ -492,24 +312,6 @@ code_map = {
         "away_avg": 1.15,
         "btts_base": 0.52,
     },
-    "🌍 Coppa d'Africa (AFCON)": {
-        "key": "soccer_africa_cup_of_nations",
-        "home_avg": 1.30,
-        "away_avg": 0.95,
-        "btts_base": 0.44,
-    },
-    "🌎 Copa Libertadores": {
-        "key": "soccer_conmebol_copa_libertadores",
-        "home_avg": 1.45,
-        "away_avg": 0.98,
-        "btts_base": 0.46,
-    },
-    "🌎 Copa Sudamericana": {
-        "key": "soccer_conmebol_copa_sudamericana",
-        "home_avg": 1.42,
-        "away_avg": 0.95,
-        "btts_base": 0.45,
-    },
 }
 
 TOP_LEAGUES_KEYS = [
@@ -524,7 +326,6 @@ TOP_LEAGUES_KEYS = [
     ("🇪🇺 Europa League", "soccer_uefa_europa_league"),
     ("🇪🇺 Conference League", "soccer_uefa_europa_conference_league"),
     ("🇪🇺 Nations League", "soccer_uefa_nations_league"),
-    ("🌍 Coppa d'Africa", "soccer_africa_cup_of_nations"),
 ]
 
 with st.expander("🎛️ **Filtri Palinsesto & Parametri**", expanded=True):
@@ -606,7 +407,7 @@ def scarica_partite_the_odds_api(s_key, key):
 
 
 # ---------------------------------------------------------
-# CALCOLO PROBABILITÀ E MERCATI ESTESI
+# CALCOLO PROBABILITÀ E MATRICE POISSON COERENTE
 # ---------------------------------------------------------
 def elab_match_odds(
     match, comp_info, home_shift=0.0, away_shift=0.0, mercato_preferito="Tutti"
@@ -659,7 +460,7 @@ def elab_match_odds(
   p2_final = (p2_mod / tot_mod) * 100
 
   if prob_over is not None:
-    gol_attesi_totali = 1.6 + (prob_over / 100.0) * 1.6
+    gol_attesi_totali = 1.6 + (prob_over / 100.0) * 1.8
   else:
     gol_attesi_totali = comp_info.get("home_avg", 1.4) + comp_info.get(
         "away_avg", 1.1
@@ -747,7 +548,7 @@ def elab_match_odds(
 
 
 # ---------------------------------------------------------
-# GEMINI BATCH CORRECTOR (RATE-LIMIT SAFE CON RETRY)
+# GEMINI BATCH CORRECTOR
 # ---------------------------------------------------------
 def studio_tattico_in_blocco_batch(lista_partite, key):
   if not key:
@@ -830,7 +631,7 @@ def studio_tattico_in_blocco_batch(lista_partite, key):
 
 
 # ---------------------------------------------------------
-# EXECUTION ENGINE MULTI-LEGA (CON ANALISI AI AUTOMATICA INCLUSA)
+# EXECUTION ENGINE MULTI-LEGA
 # ---------------------------------------------------------
 if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
   if not api_key:
@@ -1557,17 +1358,16 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP CON MATCH BLOCCATO)
+  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP FIXATA)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
     st.subheader("🚀 Scalata AI Interattiva (Step-by-Step)")
     st.write(
-        "L'algoritmo ti propone **un solo evento alla volta**. Quando trovi il"
-        " match giusto, **bloccalo** per conservarlo fino alla fine della"
-        " partita!"
+        "L'algoritmo ti propone **un solo evento alla volta**. Blocca la"
+        " partita per congelarla nel salvataggio!"
     )
 
-    # Caricamento dello stato saved
+    # Caricamento e riallineamento stato
     if "scalata_step_attuale" not in st.session_state:
       saved_data = carica_stato_scalata()
       if saved_data:
@@ -1594,9 +1394,24 @@ if "partite" in st.session_state and st.session_state["partite"]:
           "Budget Iniziale (€)",
           min_value=5.0,
           max_value=500.0,
-          value=20.0,
+          value=5.0,
           step=5.0,
+          key="input_budget_scalata",
       )
+
+      # Sincronizzazione Budget allo Step 1
+      if st.session_state["scalata_step_attuale"] == 1 and not st.session_state[
+          "scalata_storico"
+      ]:
+        if st.session_state["scalata_cassa_attuale"] != float(budget_iniziale):
+          st.session_state["scalata_cassa_attuale"] = float(budget_iniziale)
+          salva_stato_scalata(
+              1,
+              float(budget_iniziale),,
+              [],
+              st.session_state["scalata_match_bloccato"],
+          )
+
     with col_sc2:
       st.metric(
           "Step Attuale", f"STEP {st.session_state['scalata_step_attuale']}"
@@ -1608,7 +1423,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
     st.markdown("---")
 
-    # Mostra storico
     if st.session_state["scalata_storico"]:
       st.markdown("### 📜 Storico Step Vinti:")
       for h_item in st.session_state["scalata_storico"]:
@@ -1619,11 +1433,10 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
       st.markdown("---")
 
-    # Determina quale match mostrare (se bloccato o nuovo)
     match_da_mostrare = None
     is_bloccato = False
 
-    if st.session_state["scalata_match_bloccato"] is not None:
+    if st.session_state.get("scalata_match_bloccato"):
       match_da_mostrare = st.session_state["scalata_match_bloccato"]
       is_bloccato = True
     else:
@@ -1674,7 +1487,6 @@ if "partite" in st.session_state and st.session_state["partite"]:
       if match_key_scalata in st.session_state:
         st.info(st.session_state[match_key_scalata])
 
-      # Pulsanti per Bloccare / Sbloccare / Superare lo Step
       col_block1, col_block2 = st.columns(2)
 
       with col_block1:
@@ -1715,9 +1527,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
           })
           st.session_state["scalata_cassa_attuale"] = vincita_potenziale
           st.session_state["scalata_step_attuale"] += 1
-          st.session_state["scalata_match_bloccato"] = (
-              None  # Libera il match per lo step successivo
-          )
+          st.session_state["scalata_match_bloccato"] = None
 
           salva_stato_scalata(
               st.session_state["scalata_step_attuale"],
