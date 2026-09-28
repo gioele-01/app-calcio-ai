@@ -1,28 +1,15 @@
 {
-  "step": 4,
-  "cassa": 19.0,
+  "step": 1,
+  "cassa": 5.0,
   "storico": [
     {
       "step": 1,
-      "match": "Albania vs Latvia",
-      "pick": "1",
-      "quota": 1.60,
+      "match": "",
+      "pick": "",
+      "quota": ,
       "puntata": 5.0,
-      "vincita": 8.0,
+      "vincita": ,
       
-      "step": 2,
-      "match": "Lituania vs Azerbaigian",
-      "pick": "Under 2.5",
-      "quota": 1.50,
-      "puntata": 8.0,
-      "vincita": 12.0,
-
-      "step": 3,
-      "match": "Austria vs Kosovo",
-      "pick": "1",
-      "quota": 1.58,
-      "puntata": 12.0,
-      "vincita": 19.0
-    }
+         }
   ]
 }
