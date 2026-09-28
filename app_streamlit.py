@@ -1407,7 +1407,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
           st.session_state["scalata_cassa_attuale"] = float(budget_iniziale)
           salva_stato_scalata(
               1,
-              float(budget_iniziale),,
+              float(budget_iniziale),
               [],
               st.session_state["scalata_match_bloccato"],
           )
