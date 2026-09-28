@@ -1,1 +1,15 @@
-
+{
+  "step": 1,
+  "cassa": 5.0,
+  "storico": [
+    {
+      "step": 1,
+      "match": "1",
+      "pick": "1",
+      "quota": 1.0,
+      "puntata": 5.0,
+      "vincita": 5.0,
+      
+         }
+  ]
+}
