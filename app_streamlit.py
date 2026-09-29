@@ -153,6 +153,7 @@ st.markdown(
 )
 
 MARGINE_BOOKMAKER = 1.05
+QUOTA_MINIMA_GLOBALE = 1.40
 SCALATA_FILE = "scalata_save.json"
 
 
@@ -715,7 +716,13 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                 m, comp_info, mercato_preferito=mercato_preferito
             )
 
-            if perc_top >= min_confidence:
+            quota_calc = calcola_quota_reale(perc_top)
+
+            # FILTRO QUOTA MINIMA ≥ 1.40
+            if (
+                perc_top >= min_confidence
+                and quota_calc >= QUOTA_MINIMA_GLOBALE
+            ):
               partite_analizzate.append({
                   "lega": l_nome,
                   "data": commence_time,
@@ -724,6 +731,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
                   "match": nome_match,
                   "top_pick": top_pick,
                   "top_perc": perc_top,
+                  "quota": quota_calc,
                   "p1": p1,
                   "px": px,
                   "p2": p2,
@@ -800,6 +808,7 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
 
                   p["top_pick"] = new_pick
                   p["top_perc"] = new_perc
+                  p["quota"] = calcola_quota_reale(new_perc)
                   p["p1"], p["px"], p["p2"] = new_p1, new_px, new_p2
                   p["over"], p["under"] = new_over, new_under
                   p["goal"], p["no_goal"] = new_goal, new_ng
@@ -811,7 +820,9 @@ if st.button("🚀 SCANSIONA PALINSESTO & AVVIA AI"):
       st.session_state["campionato_corrente"] = campionato_scelto
       st.rerun()
     else:
-      st.error("❌ Nessuna partita futura trovata con i filtri selezionati.")
+      st.error(
+          "❌ Nessuna partita futura trovata con la quota minima >= 1.40."
+      )
 
 # ---------------------------------------------------------
 # INTERFACCIA UTENTE CON BOTTONI RETTANGOLARI
@@ -934,14 +945,14 @@ if "partite" in st.session_state and st.session_state["partite"]:
                     <span style="font-weight: 700; font-size: 1.05rem; color: #f0fdf4;">{p['match']}</span>
                 </div>
                 <div>
-                    <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}%</span>
+                    <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}% (@{p['quota']})</span>
                 </div>
             </div>
             """
 
       with st.expander(
           f"⏰ {data_label} {orario_label} | {p['match']} — {p['top_pick']}"
-          f" ({p['top_perc']:.1f}%)",
+          f" (@{p['quota']})",
           expanded=True,
       ):
         st.markdown(header_card, unsafe_allow_html=True)
@@ -1000,25 +1011,24 @@ if "partite" in st.session_state and st.session_state["partite"]:
     st.subheader("🎯 Singola del Giorno (Quota ~1.80)")
     st.write(
         "L'algoritmo seleziona l'evento con il miglior rapporto"
-        " rischio/rendimento e **quota vicina a 1.80** già ottimizzato dall'AI."
+        " rischio/rendimento e **quota vicina a 1.80**."
     )
 
     target_quota = st.slider(
         "Quota Target desiderata:",
-        min_value=1.50,
-        max_value=2.20,
+        min_value=1.40,
+        max_value=2.50,
         value=1.80,
         step=0.05,
     )
-    target_perc = 100.0 / (target_quota * MARGINE_BOOKMAKER)
 
     best_match = min(
         st.session_state["partite"],
-        key=lambda x: abs(x["top_perc"] - target_perc),
+        key=lambda x: abs(x["quota"] - target_quota),
     )
 
     if best_match:
-      quota_calcolata = calcola_quota_reale(best_match["top_perc"])
+      quota_calcolata = best_match["quota"]
       match_key_s = f"gemini_report_{best_match['match']}"
 
       st.markdown(f"""
@@ -1027,7 +1037,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 <span class="badge-league">{best_match.get('lega', '')}</span><br>
                 <h3 style="margin: 10px 0 6px 0; color: #f0fdf4;">{best_match['match']}</h3>
                 📌 Pronostico Consigliato: <strong style="font-size: 1.1rem; color: #34d399;">{best_match['top_pick']}</strong><br>
-                📈 Quota Stimata: <strong style="font-size: 1.2rem; color: #fbbf24;">@{quota_calcolata}</strong> (Confidenza AI: <strong>{best_match['top_perc']:.1f}%</strong>)
+                📈 Quota Stimata: <strong style="font-size: 1.2rem; color: #fbbf24;">@{quota_calcolata:.2f}</strong> (Confidenza AI: <strong>{best_match['top_perc']:.1f}%</strong>)
             </div>
             """, unsafe_allow_html=True)
 
@@ -1040,14 +1050,14 @@ if "partite" in st.session_state and st.session_state["partite"]:
   elif current_tab == "Doppia":
     st.subheader("👥 Doppia del Giorno (Quota ~2.50)")
     st.write(
-        "L'algoritmo seleziona la **migliore coppia di partite** con l'analisi"
-        " tattica AI già incorporata."
+        "L'algoritmo seleziona la **migliore coppia di partite** con quota"
+        " minima per evento >= 1.40."
     )
 
     target_quota_doppia = st.slider(
         "Quota Totale Doppia desiderata:",
         min_value=2.00,
-        max_value=3.50,
+        max_value=4.50,
         value=2.50,
         step=0.10,
     )
@@ -1065,8 +1075,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
       for i in range(len(lista_p)):
         for j in range(i + 1, len(lista_p)):
           p1_item, p2_item = lista_p[i], lista_p[j]
-          q1 = calcola_quota_reale(p1_item["top_perc"])
-          q2 = calcola_quota_reale(p2_item["top_perc"])
+          q1 = p1_item["quota"]
+          q2 = p2_item["quota"]
           q_tot = round(q1 * q2, 2)
 
           diff = abs(q_tot - target_quota_doppia)
@@ -1107,15 +1117,12 @@ if "partite" in st.session_state and st.session_state["partite"]:
   # ---------------------------------------------------------
   elif current_tab == "Tripla":
     st.subheader("☘️ Tripla del Giorno (Quota ~5.00)")
-    st.write(
-        "L'algoritmo seleziona la **migliore combinazione di 3 partite** con"
-        " analisi AI automatica."
-    )
+    st.write("L'algoritmo seleziona la **migliore combinazione di 3 partite**.")
 
     target_quota_tripla = st.slider(
         "Quota Totale Tripla desiderata:",
         min_value=3.50,
-        max_value=8.00,
+        max_value=10.00,
         value=5.00,
         step=0.25,
     )
@@ -1134,9 +1141,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         for j in range(i + 1, len(lista_p)):
           for k in range(j + 1, len(lista_p)):
             p1_i, p2_i, p3_i = lista_p[i], lista_p[j], lista_p[k]
-            q1 = calcola_quota_reale(p1_i["top_perc"])
-            q2 = calcola_quota_reale(p2_i["top_perc"])
-            q3 = calcola_quota_reale(p3_i["top_perc"])
+            q1, q2, q3 = p1_i["quota"], p2_i["quota"], p3_i["quota"]
             q_tot = round(q1 * q2 * q3, 2)
 
             diff = abs(q_tot - target_quota_tripla)
@@ -1180,42 +1185,46 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 """)
 
   # ---------------------------------------------------------
-  # 5. MISTA DEL GIORNO
+  # 5. MISTA DEL GIORNO (DINAMICA RICALCOLATA)
   # ---------------------------------------------------------
   elif current_tab == "Mista":
-    st.subheader("📊 Mista del Giorno (Quota ~15.00 - 20.00)")
-    st.write("Schedina mista ad alta quota generata dai dati elaborati dall'AI.")
+    st.subheader("📊 Mista del Giorno (Ricalcolo Dinamico)")
+    st.write(
+        "Cambia lo slider della quota target per ricalcolare istantaneamente la"
+        " combinazione di partite."
+    )
 
     target_mista = st.slider(
         "Quota Totale Mista desiderata:",
-        min_value=10.0,
-        max_value=30.0,
+        min_value=8.0,
+        max_value=35.0,
         value=17.5,
         step=0.5,
+        key="slider_mista_target",
     )
 
     lista_p = sorted(
         st.session_state["partite"], key=lambda x: x["top_perc"], reverse=True
     )
 
-    if len(lista_p) < 4:
+    if len(lista_p) < 3:
       st.warning(
-          "Servono almeno 4 partite nel palinsesto per generare una mista."
+          "Servono almeno 3 partite nel palinsesto per generare una mista."
       )
     else:
       mista_selezionata = []
       q_accumulata = 1.0
 
       for p_elem in lista_p:
-        q_single = calcola_quota_reale(p_elem["top_perc"])
-        if (q_accumulata * q_single) <= (target_mista * 1.25):
+        q_single = p_elem["quota"]
+        if (q_accumulata * q_single) <= (target_mista * 1.30):
           mista_selezionata.append((p_elem, q_single))
           q_accumulata *= q_single
 
         if len(mista_selezionata) >= 7 or q_accumulata >= target_mista:
           break
 
-      if len(mista_selezionata) >= 3:
+      if len(mista_selezionata) >= 2:
         st.markdown(
             '<div class="scalata-card" style="border-left: 6px solid #ef4444;'
             ' background: rgba(38, 18, 22, 0.9);">',
@@ -1265,40 +1274,41 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 6. BOMBA DEL GIORNO
+  # 6. BOMBA DEL GIORNO (DINAMICA RICALCOLATA)
   # ---------------------------------------------------------
   elif current_tab == "Bomba":
-    st.subheader("💣 Bomba del Giorno (Quota ~100+)")
+    st.subheader("💣 Bomba del Giorno (Ricalcolo Dinamico)")
     st.write(
-        "Schedina bomba ad altissimo moltiplicatore elaborata con i dati AI."
+        "Sposta lo slider della quota target per ricalcolare in tempo reale"
+        " le partite componenti."
     )
 
     target_bomba = st.slider(
         "Quota Totale Bomba desiderata:",
-        min_value=50.0,
-        max_value=250.0,
+        min_value=20.0,
+        max_value=300.0,
         value=100.0,
         step=10.0,
+        key="slider_bomba_target",
     )
 
     lista_p = st.session_state["partite"]
 
-    if len(lista_p) < 4:
+    if len(lista_p) < 3:
       st.warning(
-          "Servono almeno 4 partite nel palinsesto per generare una bomba."
+          "Servono almeno 3 partite nel palinsesto per generare una bomba."
       )
     else:
       bomba_selezionata = []
       q_bomba_accumulata = 1.0
 
+      # Ordina per quota decrescente per centrare i moltiplicatori alti
       partite_bomba_sort = sorted(
-          lista_p,
-          key=lambda x: calcola_quota_reale(x["top_perc"]),
-          reverse=True,
+          lista_p, key=lambda x: x["quota"], reverse=True
       )
 
       for p_elem in partite_bomba_sort:
-        q_single = calcola_quota_reale(p_elem["top_perc"])
+        q_single = p_elem["quota"]
         bomba_selezionata.append((p_elem, q_single))
         q_bomba_accumulata *= q_single
 
@@ -1308,7 +1318,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         ):
           break
 
-      if len(bomba_selezionata) >= 3:
+      if len(bomba_selezionata) >= 2:
         st.markdown(
             '<div class="scalata-card" style="border-left: 6px solid #dc2626;'
             ' background: rgba(45, 12, 18, 0.95);">',
@@ -1317,8 +1327,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
         prob_comb_bomba = 1.0
         txt_bomba = (
-            "💣 *BOMBA DEL GIORNO FOOTBALL AI PRO (QUOTA 100+)* 💣\n📅"
-            f" Data: {datetime.today().strftime('%d/%m/%Y')}\n\n"
+            "💣 *BOMBA DEL GIORNO FOOTBALL AI PRO* 💣\n📅 Data:"
+            f" {datetime.today().strftime('%d/%m/%Y')}\n\n"
         )
 
         for idx_b, (item_b, q_b) in enumerate(bomba_selezionata, 1):
@@ -1358,22 +1368,22 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP FIXATA)
+  # 7. SCALATA AI (INTERATTIVA STEP-BY-STEP CON SALVATAGGIO FIXATO)
   # ---------------------------------------------------------
   elif current_tab == "Scalata":
     st.subheader("🚀 Scalata AI Interattiva (Step-by-Step)")
     st.write(
-        "L'algoritmo ti propone **un solo evento alla volta**. Blocca la"
-        " partita per congelarla nel salvataggio!"
+        "L'algoritmo ti propone **un solo evento alla volta**. Quota minima >="
+        " 1.40."
     )
 
-    # Caricamento e riallineamento stato
+    # Inizializzazione pulita
     if "scalata_step_attuale" not in st.session_state:
       saved_data = carica_stato_scalata()
       if saved_data:
         st.session_state["scalata_step_attuale"] = saved_data.get("step", 1)
         st.session_state["scalata_cassa_attuale"] = saved_data.get(
-            "cassa", 20.0
+            "cassa", 5.0
         )
         st.session_state["scalata_storico"] = saved_data.get("storico", [])
         st.session_state["scalata_match_bloccato"] = saved_data.get(
@@ -1381,7 +1391,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
       else:
         st.session_state["scalata_step_attuale"] = 1
-        st.session_state["scalata_cassa_attuale"] = 20.0
+        st.session_state["scalata_cassa_attuale"] = 5.0
         st.session_state["scalata_storico"] = []
         st.session_state["scalata_match_bloccato"] = None
 
@@ -1399,7 +1409,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
           key="input_budget_scalata",
       )
 
-      # Sincronizzazione Budget allo Step 1
+      # Sincronizzazione immediata allo Step 1
       if st.session_state["scalata_step_attuale"] == 1 and not st.session_state[
           "scalata_storico"
       ]:
@@ -1428,7 +1438,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
       for h_item in st.session_state["scalata_storico"]:
         st.markdown(
             f"✅ **Step {h_item['step']}**: {h_item['match']} ➔"
-            f" **{h_item['pick']}** @{h_item['quota']} | Puntati:"
+            f" **{h_item['pick']}** @{h_item['quota']:.2f} | Puntati:"
             f" {h_item['puntata']:.2f}€ ➔ **Vinti: {h_item['vincita']:.2f}€**"
         )
       st.markdown("---")
@@ -1443,7 +1453,11 @@ if "partite" in st.session_state and st.session_state["partite"]:
       partite_cronologiche = sorted(
           st.session_state["partite"], key=lambda x: x.get("datetime_raw", "")
       )
-      candidati = [p for p in partite_cronologiche if p["top_perc"] >= 55.0]
+      candidati = [
+          p
+          for p in partite_cronologiche
+          if p["quota"] >= QUOTA_MINIMA_GLOBALE and p["top_perc"] >= 52.0
+      ]
       partite_giocate_set = {
           item["match"] for item in st.session_state["scalata_storico"]
       }
@@ -1456,12 +1470,12 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
     if not match_da_mostrare:
       st.warning(
-          "⚠️ Nessuna partita imminente ad alta confidenza trovata per il"
+          "⚠️ Nessuna partita imminente con quota >= 1.40 trovata per il"
           " prossimo step."
       )
     else:
       quota_prossimo = match_da_mostrare.get(
-          "quota_fissa", calcola_quota_reale(match_da_mostrare["top_perc"])
+          "quota_fissa", match_da_mostrare["quota"]
       )
       cassa_corrente = st.session_state["scalata_cassa_attuale"]
       vincita_potenziale = cassa_corrente * quota_prossimo
@@ -1580,12 +1594,12 @@ if "partite" in st.session_state and st.session_state["partite"]:
         or_info = f"⏰ {ev.get('data', '')} {ev.get('orario', '15:00')}"
         linea = (
             f"{idx_e}. {ev['match']} {l_info} ({or_info}) ➔ {ev['top_pick']}"
-            f" ({ev['top_perc']:.1f}%)"
+            f" (@{ev['quota']:.2f})"
         )
         st.write(f"**{linea}**")
         testo_telegram += (
             f"📌 *{ev['match']}* {l_info} ({or_info})\n👉 Esito:"
-            f" *{ev['top_pick']}* (Confidenza: {ev['top_perc']:.1f}%)\n\n"
+            f" *{ev['top_pick']}* @{ev['quota']:.2f}\n\n"
         )
         prob_combinata *= ev["top_perc"] / 100
 
@@ -1636,4 +1650,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
     )
 
 elif "partite" in st.session_state:
-  st.warning("Nessuna partita futura trovata con i filtri selezionati.")
+  st.warning(
+      "Nessuna partita futura trovata con la quota minima >= 1.40 con i filtri"
+      " selezionati."
+  )
