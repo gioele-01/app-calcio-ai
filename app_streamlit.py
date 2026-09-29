@@ -192,6 +192,10 @@ def calcola_quota_reale(prob_percentuale):
   return max(1.05, round(quota_reale, 2))
 
 
+def ottieni_quota_match(p_item):
+  return p_item.get("quota", calcola_quota_reale(p_item.get("top_perc", 50.0)))
+
+
 # ---------------------------------------------------------
 # HEADER APPLICAZIONE
 # ---------------------------------------------------------
@@ -936,6 +940,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
       lega_label = p.get("lega", camp_nome)
       orario_label = p.get("orario", "15:00")
       data_label = p.get("data", "")
+      q_val = ottieni_quota_match(p)
 
       header_card = f"""
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -945,14 +950,14 @@ if "partite" in st.session_state and st.session_state["partite"]:
                     <span style="font-weight: 700; font-size: 1.05rem; color: #f0fdf4;">{p['match']}</span>
                 </div>
                 <div>
-                    <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}% (@{p['quota']})</span>
+                    <span class="badge-pick">🎯 {p['top_pick']} {p['top_perc']:.1f}% (@{q_val:.2f})</span>
                 </div>
             </div>
             """
 
       with st.expander(
           f"⏰ {data_label} {orario_label} | {p['match']} — {p['top_pick']}"
-          f" (@{p['quota']})",
+          f" (@{q_val:.2f})",
           expanded=True,
       ):
         st.markdown(header_card, unsafe_allow_html=True)
@@ -1024,11 +1029,11 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
     best_match = min(
         st.session_state["partite"],
-        key=lambda x: abs(x["quota"] - target_quota),
+        key=lambda x: abs(ottieni_quota_match(x) - target_quota),
     )
 
     if best_match:
-      quota_calcolata = best_match["quota"]
+      quota_calcolata = ottieni_quota_match(best_match)
       match_key_s = f"gemini_report_{best_match['match']}"
 
       st.markdown(f"""
@@ -1075,8 +1080,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
       for i in range(len(lista_p)):
         for j in range(i + 1, len(lista_p)):
           p1_item, p2_item = lista_p[i], lista_p[j]
-          q1 = p1_item["quota"]
-          q2 = p2_item["quota"]
+          q1 = ottieni_quota_match(p1_item)
+          q2 = ottieni_quota_match(p2_item)
           q_tot = round(q1 * q2, 2)
 
           diff = abs(q_tot - target_quota_doppia)
@@ -1141,7 +1146,9 @@ if "partite" in st.session_state and st.session_state["partite"]:
         for j in range(i + 1, len(lista_p)):
           for k in range(j + 1, len(lista_p)):
             p1_i, p2_i, p3_i = lista_p[i], lista_p[j], lista_p[k]
-            q1, q2, q3 = p1_i["quota"], p2_i["quota"], p3_i["quota"]
+            q1 = ottieni_quota_match(p1_i)
+            q2 = ottieni_quota_match(p2_i)
+            q3 = ottieni_quota_match(p3_i)
             q_tot = round(q1 * q2 * q3, 2)
 
             diff = abs(q_tot - target_quota_tripla)
@@ -1185,7 +1192,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 """)
 
   # ---------------------------------------------------------
-  # 5. MISTA DEL GIORNO (DINAMICA RICALCOLATA)
+  # 5. MISTA DEL GIORNO (DINAMICA RICALCOLATA E PROTEGGI QUOTA)
   # ---------------------------------------------------------
   elif current_tab == "Mista":
     st.subheader("📊 Mista del Giorno (Ricalcolo Dinamico)")
@@ -1216,7 +1223,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
       q_accumulata = 1.0
 
       for p_elem in lista_p:
-        q_single = p_elem["quota"]
+        q_single = ottieni_quota_match(p_elem)
         if (q_accumulata * q_single) <= (target_mista * 1.30):
           mista_selezionata.append((p_elem, q_single))
           q_accumulata *= q_single
@@ -1274,7 +1281,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 6. BOMBA DEL GIORNO (DINAMICA RICALCOLATA)
+  # 6. BOMBA DEL GIORNO (DINAMICA RICALCOLATA E PROTEGGI QUOTA)
   # ---------------------------------------------------------
   elif current_tab == "Bomba":
     st.subheader("💣 Bomba del Giorno (Ricalcolo Dinamico)")
@@ -1302,13 +1309,13 @@ if "partite" in st.session_state and st.session_state["partite"]:
       bomba_selezionata = []
       q_bomba_accumulata = 1.0
 
-      # Ordina per quota decrescente per centrare i moltiplicatori alti
+      # Ordina per quota decrescente in modo sicuro usando ottieni_quota_match
       partite_bomba_sort = sorted(
-          lista_p, key=lambda x: x["quota"], reverse=True
+          lista_p, key=lambda x: ottieni_quota_match(x), reverse=True
       )
 
       for p_elem in partite_bomba_sort:
-        q_single = p_elem["quota"]
+        q_single = ottieni_quota_match(p_elem)
         bomba_selezionata.append((p_elem, q_single))
         q_bomba_accumulata *= q_single
 
@@ -1456,7 +1463,8 @@ if "partite" in st.session_state and st.session_state["partite"]:
       candidati = [
           p
           for p in partite_cronologiche
-          if p["quota"] >= QUOTA_MINIMA_GLOBALE and p["top_perc"] >= 52.0
+          if ottieni_quota_match(p) >= QUOTA_MINIMA_GLOBALE
+          and p["top_perc"] >= 52.0
       ]
       partite_giocate_set = {
           item["match"] for item in st.session_state["scalata_storico"]
@@ -1475,7 +1483,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
       )
     else:
       quota_prossimo = match_da_mostrare.get(
-          "quota_fissa", match_da_mostrare["quota"]
+          "quota_fissa", ottieni_quota_match(match_da_mostrare)
       )
       cassa_corrente = st.session_state["scalata_cassa_attuale"]
       vincita_potenziale = cassa_corrente * quota_prossimo
@@ -1590,16 +1598,17 @@ if "partite" in st.session_state and st.session_state["partite"]:
       )
 
       for idx_e, ev in enumerate(top_eventi, 1):
+        q_e = ottieni_quota_match(ev)
         l_info = f"[{ev.get('lega', camp_nome)}]"
         or_info = f"⏰ {ev.get('data', '')} {ev.get('orario', '15:00')}"
         linea = (
             f"{idx_e}. {ev['match']} {l_info} ({or_info}) ➔ {ev['top_pick']}"
-            f" (@{ev['quota']:.2f})"
+            f" (@{q_e:.2f})"
         )
         st.write(f"**{linea}**")
         testo_telegram += (
             f"📌 *{ev['match']}* {l_info} ({or_info})\n👉 Esito:"
-            f" *{ev['top_pick']}* @{ev['quota']:.2f}\n\n"
+            f" *{ev['top_pick']}* @{q_e:.2f}\n\n"
         )
         prob_combinata *= ev["top_perc"] / 100
 
