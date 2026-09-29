@@ -196,6 +196,57 @@ def ottieni_quota_match(p_item):
   return p_item.get("quota", calcola_quota_reale(p_item.get("top_perc", 50.0)))
 
 
+def genera_schedina_dinamica(partite, target_quota, max_eventi=8):
+  """Seleziona dinamicamente le partite per avvicinarsi alla quota target."""
+  if not partite:
+    return [], 1.0
+
+  # Filtra partite con quota valida
+  candidati = sorted(partite, key=lambda x: x["top_perc"], reverse=True)
+
+  miglior_combo = []
+  miglior_quota = 1.0
+  min_diff = float("inf")
+
+  # Algoritmo di selezione adattiva
+  for i in range(len(candidati)):
+    combo_corrente = []
+    quota_corrente = 1.0
+
+    for j in range(i, len(candidati)):
+      p = candidati[j]
+      q = ottieni_quota_match(p)
+
+      if (
+          quota_corrente * q <= target_quota * 1.35
+          and len(combo_corrente) < max_eventi
+      ):
+        combo_corrente.append((p, q))
+        quota_corrente *= q
+
+        diff = abs(quota_corrente - target_quota)
+        if diff < min_diff and len(combo_corrente) >= 2:
+          min_diff = diff
+          miglior_combo = list(combo_corrente)
+          miglior_quota = quota_corrente
+
+        if quota_corrente >= target_quota:
+          break
+
+  if not miglior_combo and candidati:
+    # Fallback se non trova combo perfetta
+    q_accum = 1.0
+    for p in candidati[:max_eventi]:
+      q = ottieni_quota_match(p)
+      miglior_combo.append((p, q))
+      q_accum *= q
+      if q_accum >= target_quota:
+        break
+    miglior_quota = q_accum
+
+  return miglior_combo, miglior_quota
+
+
 # ---------------------------------------------------------
 # HEADER APPLICAZIONE
 # ---------------------------------------------------------
@@ -1192,7 +1243,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
                 """)
 
   # ---------------------------------------------------------
-  # 5. MISTA DEL GIORNO (DINAMICA RICALCOLATA E PROTEGGI QUOTA)
+  # 5. MISTA DEL GIORNO (RICALCOLO DINAMICO REALE)
   # ---------------------------------------------------------
   elif current_tab == "Mista":
     st.subheader("📊 Mista del Giorno (Ricalcolo Dinamico)")
@@ -1210,28 +1261,18 @@ if "partite" in st.session_state and st.session_state["partite"]:
         key="slider_mista_target",
     )
 
-    lista_p = sorted(
-        st.session_state["partite"], key=lambda x: x["top_perc"], reverse=True
-    )
+    lista_p = st.session_state["partite"]
 
-    if len(lista_p) < 3:
+    if len(lista_p) < 2:
       st.warning(
-          "Servono almeno 3 partite nel palinsesto per generare una mista."
+          "Servono almeno 2 partite nel palinsesto per generare una mista."
       )
     else:
-      mista_selezionata = []
-      q_accumulata = 1.0
+      mista_selezionata, q_accumulata = genera_schedina_dinamica(
+          lista_p, target_mista, max_eventi=6
+      )
 
-      for p_elem in lista_p:
-        q_single = ottieni_quota_match(p_elem)
-        if (q_accumulata * q_single) <= (target_mista * 1.30):
-          mista_selezionata.append((p_elem, q_single))
-          q_accumulata *= q_single
-
-        if len(mista_selezionata) >= 7 or q_accumulata >= target_mista:
-          break
-
-      if len(mista_selezionata) >= 2:
+      if mista_selezionata:
         st.markdown(
             '<div class="scalata-card" style="border-left: 6px solid #ef4444;'
             ' background: rgba(38, 18, 22, 0.9);">',
@@ -1281,7 +1322,7 @@ if "partite" in st.session_state and st.session_state["partite"]:
         )
 
   # ---------------------------------------------------------
-  # 6. BOMBA DEL GIORNO (DINAMICA RICALCOLATA E PROTEGGI QUOTA)
+  # 6. BOMBA DEL GIORNO (RICALCOLO DINAMICO REALE)
   # ---------------------------------------------------------
   elif current_tab == "Bomba":
     st.subheader("💣 Bomba del Giorno (Ricalcolo Dinamico)")
@@ -1301,31 +1342,16 @@ if "partite" in st.session_state and st.session_state["partite"]:
 
     lista_p = st.session_state["partite"]
 
-    if len(lista_p) < 3:
+    if len(lista_p) < 2:
       st.warning(
-          "Servono almeno 3 partite nel palinsesto per generare una bomba."
+          "Servono almeno 2 partite nel palinsesto per generare una bomba."
       )
     else:
-      bomba_selezionata = []
-      q_bomba_accumulata = 1.0
-
-      # Ordina per quota decrescente in modo sicuro usando ottieni_quota_match
-      partite_bomba_sort = sorted(
-          lista_p, key=lambda x: ottieni_quota_match(x), reverse=True
+      bomba_selezionata, q_bomba_accumulata = genera_schedina_dinamica(
+          lista_p, target_bomba, max_eventi=10
       )
 
-      for p_elem in partite_bomba_sort:
-        q_single = ottieni_quota_match(p_elem)
-        bomba_selezionata.append((p_elem, q_single))
-        q_bomba_accumulata *= q_single
-
-        if (
-            q_bomba_accumulata >= target_bomba
-            or len(bomba_selezionata) >= 10
-        ):
-          break
-
-      if len(bomba_selezionata) >= 2:
+      if bomba_selezionata:
         st.markdown(
             '<div class="scalata-card" style="border-left: 6px solid #dc2626;'
             ' background: rgba(45, 12, 18, 0.95);">',
